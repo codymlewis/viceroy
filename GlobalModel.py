@@ -33,7 +33,7 @@ class GlobalModel:
 
     def get_params(self):
         """Get the tensor form parameters of this model"""
-        return [p.data for p in self.net.parameters()]
+        return self.net.get_params()
 
 
 def fed_avg(net, num_clients, grads, lr):

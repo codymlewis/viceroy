@@ -57,6 +57,10 @@ class SoftMaxModel(nn.Module):
             "data_count": len(x)
         }
 
+    def get_params(self):
+        """Get the tensor form parameters of this model"""
+        return [p.data for p in self.parameters()]
+
     def copy_params(self, params):
         """Copy input parameters into self"""
         for p, t in zip(params, self.parameters()):
