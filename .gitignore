@@ -3,3 +3,5 @@ __pycache__/*
 *.pyc
 Session.vim
 tags
+data
+data/*

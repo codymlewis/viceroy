@@ -4,9 +4,10 @@ Pytorch implementation of a softmax perceptron
 Author: Cody Lewis
 """
 
-import torch
 import torch.nn as nn
 import torch.optim as optim
+
+import utils
 
 
 class SoftMaxModel(nn.Module):
@@ -37,8 +38,10 @@ class SoftMaxModel(nn.Module):
         verbose -- output training stats if True
         """
         optimizer = optim.SGD(self.parameters(), lr=self.lr, momentum=0.9)
-        criterion = nn.BCELoss()
+        # criterion = nn.MSELoss()
+        criterion = nn.CrossEntropyLoss()
         history = {'loss': []}
+        # TODO: take a random batch of the data
         for i in range(epochs):
             optimizer.zero_grad()
             output = self(x)
@@ -65,3 +68,10 @@ class SoftMaxModel(nn.Module):
         """Copy input parameters into self"""
         for p, t in zip(params, self.parameters()):
             t.data.copy_(p)
+
+
+if __name__ == '__main__':
+    X, Y = utils.load_data("mnist")
+    dims = utils.get_dims(X.shape, Y.shape)
+    net = SoftMaxModel(dims['x'], dims['y'])
+    net.fit(X, Y, 500)

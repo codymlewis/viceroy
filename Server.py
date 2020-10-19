@@ -6,10 +6,10 @@ Author: Cody Lewis
 
 import socket
 import pickle
-import torch
 import torch.nn as nn
 
 import GlobalModel
+import utils
 
 
 class Server:
@@ -46,9 +46,10 @@ class Server:
         for e in range(epochs):
             grads = dict()
             for i, (c, _) in enumerate(self.clients):
-                c.send(b'OK')
                 grads[i] = pickle.loads(c.recv(4096))
             self.net.fit(1, grads)
+            for c, _ in self.clients:
+                c.send(pickle.dumps(self.net.get_params()))
             print(
                 f"Epoch: {e + 1}/{epochs}, Loss: {criterion(server.net.predict(X), Y)}",
                 end="\r"
@@ -57,6 +58,7 @@ class Server:
 
     def close(self):
         for c, _ in self.clients:
+            c.send(b'DONE')
             c.close()
         self.clients = []
 
@@ -64,20 +66,22 @@ class Server:
 
 if __name__ == '__main__':
     PORT = 5000
-    server = Server(2, 2, PORT)
+    X, Y = utils.load_data("mnist", train=False)
+    dims = utils.get_dims(X.shape, Y.shape)
+    server = Server(dims['x'], dims['y'], PORT)
     print(f"Starting server on port {PORT}")
-    X = torch.tensor([
-        [0, 0],
-        [0, 1],
-        [1, 0],
-        [1, 1]
-    ], dtype=torch.float32)
-    Y = torch.tensor([
-        [1, 0],
-        [1, 0],
-        [1, 0],
-        [0, 1]
-    ], dtype=torch.float32)
-    server.accept_clients(2)
+    # X = torch.tensor([
+    #     [0, 0],
+    #     [0, 1],
+    #     [1, 0],
+    #     [1, 1]
+    # ], dtype=torch.float32)
+    # Y = torch.tensor([
+    #     [1, 0],
+    #     [1, 0],
+    #     [1, 0],
+    #     [0, 1]
+    # ], dtype=torch.float32)
+    server.accept_clients(1)
     server.fit(X, Y, 5000)
     server.close()
