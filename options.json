@@ -1,0 +1,6 @@
+{
+        "epochs": 5000,
+        "users": 2,
+        "batch_size": 8,
+        "result_log_file": "./results.log"
+}

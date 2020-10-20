@@ -4,6 +4,7 @@ Pytorch implementation of a softmax perceptron
 Author: Cody Lewis
 """
 
+import torch
 import torch.nn as nn
 import torch.optim as optim
 
@@ -16,7 +17,9 @@ class SoftMaxModel(nn.Module):
         super(SoftMaxModel, self).__init__()
 
         self.features = nn.ModuleList([
-            nn.Linear(num_in, num_out),
+            nn.Linear(num_in, num_in * 10),
+            nn.Sigmoid(),
+            nn.Linear(num_in * 10, num_out),
             nn.Softmax(dim=1)
         ]).eval()
         self.lr = lr
@@ -26,7 +29,7 @@ class SoftMaxModel(nn.Module):
             x = feature(x)
         return x
 
-    def fit(self, x, y, epochs, verbose=True):
+    def fit(self, x, y, batch_size=0, epochs=1, verbose=True):
         """
         Fit the model for some epochs, return history of loss values and the
         gradients of the changed parameters
@@ -38,24 +41,29 @@ class SoftMaxModel(nn.Module):
         verbose -- output training stats if True
         """
         optimizer = optim.SGD(self.parameters(), lr=self.lr, momentum=0.9)
-        # criterion = nn.MSELoss()
         criterion = nn.CrossEntropyLoss()
-        history = {'loss': []}
-        # TODO: take a random batch of the data
+        n, _ = x.shape
         for i in range(epochs):
             optimizer.zero_grad()
-            output = self(x)
-            history['loss'].append(criterion(output, y))
+            if 0 < batch_size < n:
+                ids = torch.randperm(n)[:batch_size]
+                sample_x = x[ids]
+                sample_y = y[0][ids]
+            else:
+                sample_x = x
+                sample_y = y
+            output = self(sample_x)
+            loss = criterion(output, sample_y)
             if verbose:
                 print(
-                    f"Epoch {i + 1}/{epochs} loss: {history['loss'][-1]}",
+                    f"Epoch {i + 1}/{epochs} loss: {loss}",
                     end="\r"
                 )
-            history['loss'][-1].backward()
+            loss.backward()
             optimizer.step()
         if verbose:
             print()
-        return history, {
+        return loss, {
             "params": [p.grad for p in self.parameters()],
             "data_count": len(x)
         }
@@ -71,7 +79,6 @@ class SoftMaxModel(nn.Module):
 
 
 if __name__ == '__main__':
-    X, Y = utils.load_data("mnist")
-    dims = utils.get_dims(X.shape, Y.shape)
-    net = SoftMaxModel(dims['x'], dims['y'])
-    net.fit(X, Y, 500)
+    data = utils.load_data("mnist")
+    net = SoftMaxModel(data['x_dim'], data['y_dim'])
+    net.fit(data['x'], data['y'], 64, 50000)

@@ -8,8 +8,10 @@ import torch
 import torch.nn as nn
 
 import SoftMaxModel
+import utils
 
 
+# TODO: Maybe remove num_clients?
 class GlobalModel:
     """The central global model for use within federated learning"""
     def __init__(self, num_in, num_out):
@@ -80,34 +82,24 @@ def foolsgold(histories, num_clients, kappa, grads):
 
 
 if __name__ == '__main__':
-    x = torch.tensor([
-        [0, 0],
-        [0, 1],
-        [1, 0],
-        [1, 1]
-    ], dtype=torch.float32)
-    y = torch.tensor([
-        [1, 0],
-        [1, 0],
-        [1, 0],
-        [0, 1]
-    ], dtype=torch.float32)
-    server = GlobalModel(len(x[0]), len(y[0]))
-    client = SoftMaxModel.SoftMaxModel(len(x[0]), len(y[0]))
+    data = utils.load_data('mnist')
+    server = GlobalModel(data['x_dim'], data['y_dim'])
+    client = SoftMaxModel.SoftMaxModel(data['x_dim'], data['y_dim'])
     client.copy_params(server.get_params())
     server.add_client()
     epochs = 5000
-    criterion = nn.BCELoss()
+    criterion = nn.CrossEntropyLoss()
     for i in range(epochs):
-        history, grads = client.fit(x, y, 1, verbose=False)
+        client.copy_params(server.net.get_params())
+        loss, grads = client.fit(data['x'], data['y'], 8, 1, verbose=False)
         grads = {0: grads}
         server.fit(1, grads)
         print(
-            f"Epoch {i + 1}/{epochs}, client loss: {history['loss'][-1]}, server loss {criterion(server.predict(x), y)}",
+            f"Epoch {i + 1}/{epochs}, client loss: {loss}, server loss: {criterion(server.predict(data['x']), data['y'][0])}",
             end="\r"
         )
     print()
     print()
-    print(f"Client's final predictions:\n{client(x)}")
+    print(f"Client's final predictions:\n{client(data['x'])}")
     print()
-    print(f"Server's final predictions:\n{server.predict(x)}")
+    print(f"Server's final predictions:\n{server.predict(data['x'])}")

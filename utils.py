@@ -1,7 +1,7 @@
 """
 Utility functions for use on other classes in this project
 
-Author: Cody
+Author: Cody Lewis
 """
 
 import torch
@@ -24,16 +24,17 @@ def load_data(ds_name, train=True):
         return torch.tensor(), torch.tensor()
     data = chosen_set(f"./data/{ds_name}", train=train, download=True)
     X = data.data
+    Y = data.targets.long().unsqueeze(dim=0)
     if len(X.shape) == 3:
         X = X.reshape(X.shape[0], X.shape[1] * X.shape[2])
-    # return X.float(), nn.functional.one_hot(data.targets)
-    return X.float(), data.targets.long().unsqueeze(dim=0)
-
-
-def get_dims(x_shape, y_shape):
-    """Get the dimensions for a dataset based on its shapes"""
     return {
-        "x": x_shape[-1] if len(x_shape) > 1 else 1,
-        "y": y_shape[-1] if len(y_shape) > 1 else 1,
+        "x": X.float(),
+        "y": Y,
+        "x_dim": X.shape[-1] if len(X.shape) > 1 else 1,
+        "y_dim": int(torch.max(Y)) + 1,
     }
+
+# def find_acc(model, X, Y):
+# torch.argmax(server.net.predict(val_data['x']), dim=1) == val_data['y'][0]
+# count instances of true in above divide by length
 
