@@ -10,7 +10,7 @@ import threading
 import torch.nn as nn
 
 from global_model import GlobalModel
-from client import Client
+from client import Client, ADVERSARY_TYPES
 import utils
 
 # TODO: Maybe verbosity for log file writing
@@ -46,7 +46,8 @@ class Server:
                 print(
                     f"Epoch: {e + 1}/{epochs}, " +
                     f"Loss: {criterion(self.net.predict(X), Y[0]):.6f}, " +
-                    f"Accuracy: {stats['accuracy']}",
+                    f"Accuracy: {stats['accuracy']}, " +
+                    f"Attack Success Rate: {stats['attack_success']}",
                     end="\r" if self.options.verbosity < 2 else "\n"
                 )
         if self.options.verbosity > 0:
@@ -55,11 +56,11 @@ class Server:
     def add_clients(self, clients):
         """Add clients to the server"""
         self.num_clients += len(clients)
-        self.net.add_client()
         self.clients.extend(clients)
 
 
 def client_fit(client):
+    """Function that fits a client, for use within a thread"""
     client.fit_async(verbose=False)
 
 
@@ -83,13 +84,18 @@ if __name__ == '__main__':
                 [i for i in range(val_data['y_dim'])],
                 options.users % val_data['y_dim']
             )
+    user_classes = [
+        Client if i < options.users * (1 - options.adversaries['percent_adv'])
+        else ADVERSARY_TYPES[options.adversaries['type']]
+        for i in range(options.users)
+    ]
     server.add_clients(
         [
-            Client(
+            u(
                 train_data,
                 options,
                 class_shards[2*i:2*i + 2]
-            ) for i in range(options.users)
+            ) for i, u in enumerate(user_classes)
         ]
     )
     if options.verbosity > 0:
@@ -102,4 +108,5 @@ if __name__ == '__main__':
     print("-----[Results]-----")
     stats = utils.find_stats(server.net, val_data['x'], val_data['y'], options)
     print(f"Accuracy: {stats['accuracy'] * 100}%")
+    print(f"Attack Success Rate: {stats['attack_success'] * 100}%")
     print("-------------------")
