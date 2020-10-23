@@ -1,6 +1,14 @@
 {
-        "epochs": 5000,
-        "users": 2,
-        "batch_size": 8,
+        "server_epochs": 30,
+        "user_epochs": 1,
+        "users": 10,
+        "batch_size": 512,
+        "learning_rate": 0.01,
+        "fit_fun": "fed_avg",
+        "params": {
+                "lr": 0.01,
+                "kappa": 1
+        },
+        "verbosity": 1,
         "result_log_file": "./results.log"
 }
