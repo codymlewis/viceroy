@@ -9,8 +9,9 @@ import threading
 
 import torch.nn as nn
 
+from client import Client
+from adversaries import ADVERSARY_TYPES
 from global_model import GlobalModel
-from client import Client, ADVERSARY_TYPES
 import utils
 
 # TODO: Maybe verbosity for log file writing
@@ -46,8 +47,8 @@ class Server:
                 print(
                     f"Epoch: {e + 1}/{epochs}, " +
                     f"Loss: {criterion(self.net.predict(X), Y[0]):.6f}, " +
-                    f"Accuracy: {stats['accuracy']}, " +
-                    f"Attack Success Rate: {stats['attack_success']}",
+                    f"Accuracy: {stats['accuracy']:.6f}, " +
+                    f"Attack Success Rate: {stats['attack_success']:.6f}",
                     end="\r" if self.options.verbosity < 2 else "\n"
                 )
         if self.options.verbosity > 0:

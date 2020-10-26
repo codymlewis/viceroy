@@ -44,7 +44,7 @@ def find_stats(model, X, Y, options):
     ids = Y[0] == options.adversaries['from']
     attack_success = (
         predictions[ids] == options.adversaries['to']
-    ).sum().item() / len(ids)
+    ).sum().item() / ids.sum().item()
     return {
         "accuracy": accuracy,
         "attack_success": attack_success

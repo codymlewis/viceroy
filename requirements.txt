@@ -1,2 +1,4 @@
 pytorch
 torchvision
+ggplot
+pandas
