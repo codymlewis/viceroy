@@ -11,9 +11,9 @@
         },
         "adversaries": {
                 "percent_adv": 0.5,
-                "type": "onoff",
-                "from": 1,
-                "to": 7,
+                "type": "on off",
+                "from": 4,
+                "to": 8,
                 "toggle_time": 30
         },
         "verbosity": 1,

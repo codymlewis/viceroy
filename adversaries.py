@@ -50,5 +50,5 @@ class OnOff(Client):
 # Dictionary for factory stuctures of adversary construction
 ADVERSARY_TYPES = {
     "label flip": Flipper,
-    "onoff": OnOff
+    "on off": OnOff
 }

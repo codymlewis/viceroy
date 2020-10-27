@@ -47,6 +47,12 @@ def fed_avg(net, grads, params):
                 )
 
 
+def find_feature_importance(net):
+    """Get a vector indicating the importance of features in the network"""
+    w_t = utils.flatten_params(net.get_params())
+    return abs(w_t) / sum(abs(w_t))
+
+
 def foolsgold(net, grads, params):
     """Perform FoolsGold learning across the client gradients"""
     flat_grads = utils.flatten_grads(grads)
@@ -60,17 +66,17 @@ def foolsgold(net, grads, params):
     alpha = torch.tensor([0 for _ in range(num_clients)], dtype=torch.float32)
     if len(net.histories) < num_clients:
         while len(net.histories) < num_clients:
-            net.histories[len(net.histories)] = flat_grads[len(net.histories)]
+            net.histories[len(net.histories)] = -params['lr'] * \
+                    flat_grads[len(net.histories)]
     else:
         for i in range(num_clients):
-            net.histories[i] += flat_grads[i]
+            net.histories[i] -= params['lr'] * flat_grads[i]
+    feature_importance = find_feature_importance(net)
     for i in range(num_clients):
-        # TODO: feature importances S_t (fi in other code:
-        # abs(w_t) / sum(abs(w_t)))
         for j in {x for x in range(num_clients)} - {i}:
             cs[i][j] = torch.cosine_similarity(
-                net.histories[i],
-                net.histories[j],
+                net.histories[i] * feature_importance,
+                net.histories[j] * feature_importance,
                 dim=0
             )
         v[i] = max(cs[i])

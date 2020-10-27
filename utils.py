@@ -62,6 +62,14 @@ def flatten_grads(grads):
     return flat_grads
 
 
+def flatten_params(params):
+    """Flatten params into a vector"""
+    flat_params = torch.tensor([])
+    for p in params:
+        flat_params = torch.cat((flat_params, p.flatten()))
+    return flat_params
+
+
 def create_log(log_fn, stats):
     """Create the log file"""
     with open(log_fn, "w") as f:
