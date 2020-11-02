@@ -23,18 +23,13 @@ class Server:
     def fit(self, X, Y, epochs):
         criterion = nn.CrossEntropyLoss()
         for e in range(epochs):
-            grads = dict()
-            losses = dict()
-            threads = list()
+            grads = []
+            losses = []
             for c in self.clients:
                 c.net.copy_params(self.net.get_params())
-                t = threading.Thread(target=client_fit, args=(c,))
-                threads.append(t)
-                t.start()
-            for i, (t, c) in enumerate(zip(threads, self.clients)):
-                t.join()
-                grads[i] = c.latest_grad
-                losses[i] = c.latest_loss
+                l, g = c.fit()
+                grads.append(g)
+                losses.append(l)
             self.net.fit(grads, self.options.params)
             stats = utils.find_stats(self.net, X, Y, self.options)
             if self.options.verbosity > 1:
@@ -50,6 +45,8 @@ class Server:
                     f"Attack Success Rate: {stats['attack_success']:.6f}",
                     end="\r" if self.options.verbosity < 2 else "\n"
                 )
+            del grads
+            del losses
         if self.options.verbosity > 0:
             print()
 
@@ -57,8 +54,3 @@ class Server:
         """Add clients to the server"""
         self.num_clients += len(clients)
         self.clients.extend(clients)
-
-
-def client_fit(client):
-    """Function that fits a client, for use within a thread"""
-    client.fit_async(verbose=False)

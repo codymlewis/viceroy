@@ -65,7 +65,7 @@ class SoftMaxModel(nn.Module):
         if verbose:
             print()
         return loss, {
-            "params": [p.grad for p in self.parameters()],
+            "params": [-self.lr * p.grad for p in self.parameters()],
             "data_count": data_count
         }
 

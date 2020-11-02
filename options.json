@@ -1,13 +1,14 @@
 {
         "server_epochs": 300,
         "user_epochs": 1,
-        "users": 20,
+        "users": 10,
         "batch_size": 512,
         "learning_rate": 0.01,
-        "fit_fun": "foolsgold",
+        "fit_fun": "federated averaging",
         "params": {
                 "lr": 0.01,
-                "kappa": 1
+                "kappa": 2,
+                "importance": false
         },
         "adversaries": {
                 "percent_adv": 0.5,
@@ -16,6 +17,18 @@
                 "to": 8,
                 "toggle_time": 30
         },
+        "class_shards": [
+                [0, 9],
+                [1, 8],
+                [2, 7],
+                [3, 6],
+                [4, 5],
+                [5, 7],
+                [6, 2],
+                [7, 5],
+                [8, 9],
+                [9, 4]
+        ],
         "verbosity": 1,
         "result_log_file": "./results.log"
 }

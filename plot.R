@@ -72,7 +72,10 @@ main <- function(results, plot_img) {
                      colour=NULL
                 )  +
                 scale_y_continuous(lim=c(0,1)) +
-                theme(legend.position="bottom")
+                theme(
+                        legend.position="bottom",
+                        plot.title=element_text(size=11)
+                )
         ggsave(plot_img)
 }
 

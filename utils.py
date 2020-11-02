@@ -54,7 +54,7 @@ def find_stats(model, X, Y, options):
 def flatten_grads(grads):
     """Flatten gradients into vectors"""
     flat_grads = []
-    for g in grads.values():
+    for g in grads:
         t = torch.tensor([])
         for p in g['params']:
             t = torch.cat((t, p.flatten()))
@@ -95,6 +95,7 @@ class Options(NamedTuple):
     fit_fun: str
     params: dict
     adversaries: dict
+    class_shards: list
     verbosity: int
     result_log_file: str
 
@@ -112,6 +113,7 @@ def load_options():
             options['fit_fun'],
             options['params'],
             options['adversaries'],
+            options['class_shards'],
             options['verbosity'],
             options['result_log_file']
         )
