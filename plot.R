@@ -36,7 +36,8 @@ main <- function(results, plot_img) {
         df$epoch <- 1:length(df$accuracy)
 
         gp <- ggplot(data=df, aes(x=epoch))
-        if(options$adversaries$type == "on off") {
+        if(options$adversaries$percent_adv > 0 &&
+           options$adversaries$type == "on off") {
                 off <- as.logical(ceiling(df$epoch / options$adversaries$toggle_time) %% 2)
                 status <- rep(1, length(df$epoch))
                 status[off] <- 0
@@ -52,8 +53,8 @@ main <- function(results, plot_img) {
                         aes(
                                 xmin=start,
                                 xmax=end,
-                                ymin=min(df$attack_success),
-                                ymax=max(df$attack_success),
+                                ymin=0,
+                                ymax=1,
                                 group=group
                         ),
                         color="transparent",
@@ -63,7 +64,15 @@ main <- function(results, plot_img) {
         }
 
         gp +
-                geom_line(aes(y=attack_success, colour="Attack Success Rate")) +
+                `if`(options$adversaries$percent_adv > 0,
+                        geom_line(
+                                aes(
+                                    y=attack_success,
+                                    colour="Attack Success Rate"
+                                )
+                        ),
+                        NULL
+                ) +
                 geom_line(aes(y=accuracy, colour="Accuracy")) +
                 labs(
                      title=title,

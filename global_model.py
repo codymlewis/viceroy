@@ -6,19 +6,21 @@ Author: Cody Lewis
 
 import torch
 
-from softmax_model import SoftMaxModel
+from models import MODELS
 import utils
 
 
 class GlobalModel:
     """The central global model for use within federated learning"""
-    def __init__(self, num_in, num_out, fit_fun_name):
-        self.net = SoftMaxModel(num_in, num_out)
+    def __init__(self, num_in, num_out, options):
+        self.net = MODELS[options.architecture](
+            num_in, num_out, params_mul=options.params_mul
+        )
         self.histories = dict()
         self.fit_fun = {
             "federated averaging": fed_avg,
             "foolsgold": foolsgold
-        }[fit_fun_name]
+        }[options.fit_fun]
 
     def fit(self, grads, params):
         """Fit the model to some client gradients"""

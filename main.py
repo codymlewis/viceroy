@@ -22,18 +22,21 @@ def index_match(arr):
     return False
 
 
-def find_shards(num_users, percent_adv, num_classes):
+def find_shards(num_users, num_classes, classes_per_user):
     """Find data class shards according to the parameters"""
-    end_half = [i for i in range(num_classes)]
-    if num_classes / 2 < num_users:
-        while index_match(end_half):
-            random.shuffle(end_half)
+    end_halves = [[i for i in range(num_classes)]
+            for _ in range(classes_per_user - 1)]
+    if num_classes / classes_per_user < num_users:
+        for end_half in end_halves:
+            while index_match(end_half):
+                random.shuffle(end_half)
     return [
         [
             i % num_classes,
             (num_classes - i - 1) % num_classes
-            if i < num_users / 2 else end_half[i % num_classes]
-        ]
+            if i < num_users / classes_per_user else end_halves[0][i % num_classes]
+            ] + ([eh[i % num_classes] for eh in end_halves[1:]] if
+            classes_per_user > 2 else [])
         for i in range(num_users)
     ]
 
@@ -41,56 +44,70 @@ def find_shards(num_users, percent_adv, num_classes):
 if __name__ == '__main__':
     options = utils.load_options()
     if options.verbosity > 0:
-        print("Loading Datasets and Creating Models...")
-    train_data = utils.load_data("mnist", train=True)
-    val_data = utils.load_data("mnist", train=False)
-    server = Server(val_data['x_dim'], val_data['y_dim'], options)
-    stats = utils.find_stats(server.net, val_data['x'], val_data['y'], options)
-    if options.verbosity > 1:
-        print(f"Creating log file: {options.result_log_file}...")
-    utils.create_log(options.result_log_file, stats)
-    if options.verbosity > 1:
-        print("Done log file creation.")
+        print("Options set as:")
+        print(options)
+    train_data = utils.load_data(
+        options.dataset,
+        train=True,
+        softmax=options.architecture == "softmax"
+    )
+    val_data = utils.load_data(
+        options.dataset,
+        train=False,
+        softmax=options.architecture == "softmax"
+    )
     user_classes = [
         Client if i <= options.users * (1 - options.adversaries['percent_adv'])
         else ADVERSARY_TYPES[options.adversaries['type']]
-        for i in range(options.users)
+        for i in range(1, options.users + 1)
     ]
     if options.class_shards:
         class_shards = options.class_shards
     else:
         class_shards = find_shards(
             options.users,
-            options.adversaries['percent_adv'],
-            val_data['y_dim']
+            val_data['y_dim'],
+            options.classes_per_user
         )
-    if options.verbosity > 0:
+    if options.class_shards is None and options.verbosity > 0:
         print("Assigned class shards:")
         print(class_shards)
-    server.add_clients(
-        [
-            u(
-                train_data,
-                options,
-                class_shards[i]
-            ) for i, u in enumerate(user_classes)
-        ]
-    )
+        print()
+    experiment_stats = {"accuracies": [], "attack_successes": []}
+    for i in range(options.num_sims):
+        print(f"Simulation {i + 1}/{options.num_sims}")
+        server = Server(val_data['x_dim'], val_data['y_dim'], options)
+        server.add_clients(
+            [
+                u(
+                    train_data,
+                    options,
+                    class_shards[i]
+                ) for i, u in enumerate(user_classes)
+            ]
+        )
+        print("Starting training...")
+        accuracies, attack_successes = server.fit(
+            val_data['x'], val_data['y'], options.server_epochs
+        )
+        experiment_stats['accuracies'].append(accuracies)
+        experiment_stats['attack_successes'].append(attack_successes)
+        if options.verbosity > 0:
+            print("Done training.")
+        stats = utils.find_stats(server.net, train_data['x'],
+                                 train_data['y'], options)
+
+        stats_val = utils.find_stats(
+            server.net, val_data['x'], val_data['y'], options
+        )
+        print(f"Accuracy: t: {stats['accuracy'] * 100}%, ", end="")
+        print(f"v: {stats_val['accuracy'] * 100}%")
+        print(f"Attack success rate: t: {stats['attack_success'] * 100}%, ", end="")
+        print(f"v: {stats_val['attack_success'] * 100}%")
+        print()
+
     if options.verbosity > 0:
-        print("Done dataset and model creation.")
-    print("Starting training...")
-    server.fit(val_data['x'], val_data['y'], options.server_epochs)
+        print(f"Writing averaged results to {options.result_log_file}...")
+    utils.write_log(options.result_log_file, experiment_stats)
     if options.verbosity > 0:
-        print("Done training.")
-    print()
-    print("-----[Results]-----")
-    stats = utils.find_stats(server.net, train_data['x'],
-                             train_data['y'], options)
-    print("Training:")
-    print(f"Accuracy: {stats['accuracy'] * 100}%")
-    print(f"Attack Success Rate: {stats['attack_success'] * 100}%")
-    stats = utils.find_stats(server.net, val_data['x'], val_data['y'], options)
-    print("Validation")
-    print(f"Accuracy: {stats['accuracy'] * 100}%")
-    print(f"Attack Success Rate: {stats['attack_success'] * 100}%")
-    print("-------------------")
+        print("Done.")
