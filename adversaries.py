@@ -12,13 +12,9 @@ from client import Client
 
 class Flipper(Client):
     """A simple label-flipping model poisoner"""
-    def __init__(self, data, options, classes):
-        super().__init__(data, options, classes)
-        ids = data['y'][0] == options.adversaries['from']
-        self.x = data['x'][ids]
-        self.y = torch.tensor(
-            [options.adversaries['to'] for _ in ids]
-        ).unsqueeze(dim=0)
+    def __init__(self, options, classes):
+        super().__init__(options, [options.adversaries['from']])
+        self.data['dataloader'].dataset.targets[:] = options.adversaries['to']
 
 
 class OnOff(Client):
@@ -26,8 +22,8 @@ class OnOff(Client):
     Label flipping poisoner that switches its attack on and off every few
     epochs
     """
-    def __init__(self, data, options, classes):
-        super().__init__(data, options, classes)
+    def __init__(self, options, classes):
+        super().__init__(options, classes)
         ids = data['y'][0] == options.adversaries['from']
         self.shadow_x = data['x'][ids]
         self.shadow_y = torch.tensor(

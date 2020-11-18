@@ -4,24 +4,28 @@
         "server_epochs": 300,
         "user_epochs": 1,
         "users": 10,
-        "batch_size": 96,
-        "learning_rate": [0.01],
-        "lr_changes": [],
-        "architecture": "squeeze",
-        "params_mul": 10,
-        "fit_fun": "federated averaging",
+        "model_params": {
+                "architecture": "squeeze",
+                "device": "cuda:0",
+                "batch_size": 160,
+                "params_mul": 10,
+                "learning_rate": [0.01],
+                "lr_changes": []
+
+        },
+        "fit_fun": "foolsgold",
         "params": {
                 "kappa": 2,
                 "importance": false
         },
         "adversaries": {
-                "percent_adv": 0.0,
+                "percent_adv": 0.5,
                 "type": "label flip",
                 "from": 0,
-                "to": 21,
+                "to": 8,
                 "toggle_time": 30
         },
-        "class_shards": null,
+        "class_shards": [[0, 9],[1, 8],[2, 7],[3, 6],[4, 5],[5, 7],[6, 2],[7, 5],[8, 9],[9, 4]],
         "classes_per_user": 2,
         "verbosity": 1,
         "result_log_file": "./results.log"

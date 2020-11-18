@@ -1,0 +1,2 @@
+class MisconfigurationError(Exception):
+    pass

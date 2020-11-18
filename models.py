@@ -4,23 +4,24 @@ Pytorch implementation of a softmax perceptron
 Author: Cody Lewis
 """
 
-import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-import time
+
+import errors
 
 
 class Model(nn.Module):
-    def __init__(self, lr, lr_changes):
+    def __init__(self, params):
         super().__init__()
-        self.lr = lr[0]
-        self.learning_rates = lr.copy()
+        self.params = params
+        self.lr = params['learning_rate'][0]
+        self.learning_rates = params['learning_rate'].copy()
         del self.learning_rates[0]
-        self.lr_changes = lr_changes.copy()
+        self.lr_changes = params['lr_changes'].copy()
         self.epoch_count = 0
 
-    def fit(self, x, y, batch_size=0, epochs=1, verbose=True):
+    def fit(self, data, epochs=1, verbose=True):
         """
         Fit the model for some epochs, return history of loss values and the
         gradients of the changed parameters
@@ -38,31 +39,14 @@ class Model(nn.Module):
             weight_decay=0.0001
         )
         criterion = nn.CrossEntropyLoss()
-        if isinstance(x, torch.utils.data.dataset.Dataset):
-            n = len(x)
-        else:
-            n, _ = x.shape
-        print(f"n: {n}")
         data_count = 0
         for i in range(epochs):
             optimizer.zero_grad()
-            if 0 < batch_size < n:
-                ids = torch.randperm(n)[:batch_size]
-                output = self(x[ids])
-                if len(output.shape) > 2:
-                    output = output.flatten(1)
-                print(output.shape)
-                # sample_x = x[ids]
-                # output = torch.tensor([self(x[i]) for i in ids])
-                sample_y = y[0][ids]
-                data_count += batch_size
-            else:
-                # sample_x = x
-                output = torch.tensor([self(x_s) for x_s in x])
-                sample_y = y[0]
-                data_count = n
-            # output = self(sample_x)
-            loss = criterion(output, sample_y)
+            x, y = next(iter(data))
+            x = x.to(self.params['device'])
+            y = y.to(self.params['device'])
+            output = self(x)
+            loss = criterion(output, y)
             if verbose:
                 print(
                     f"Epoch {i + 1}/{epochs} loss: {loss}",
@@ -70,6 +54,7 @@ class Model(nn.Module):
                 )
             loss.backward()
             optimizer.step()
+            data_count += len(y)
         self.epoch_count += 1
         if self.lr_changes and self.epoch_count > self.lr_changes[0]:
             self.lr = self.learning_rates[0]
@@ -94,12 +79,16 @@ class Model(nn.Module):
 
 class SoftMaxModel(Model):
     """The softmax perceptron class"""
-    def __init__(self, num_in, num_out, lr=[0.01], lr_changes=[], params_mul=10):
-        super().__init__(lr, lr_changes)
+    def __init__(self, params):
+        super().__init__(params)
         self.features = nn.ModuleList([
-            nn.Linear(num_in, num_in * params_mul),
+            nn.Linear(
+                params['num_in'], params['num_in'] * params['params_mul']
+            ),
             nn.Sigmoid(),
-            nn.Linear(num_in * params_mul, num_out),
+            nn.Linear(
+                params['num_in'] * params['params_mul'], params['num_out']
+            ),
             nn.Softmax(dim=1)
         ]).eval()
 
@@ -110,11 +99,11 @@ class SoftMaxModel(Model):
 
 
 class SqueezeNet(Model):
-    def __init__(self, num_in, num_out, lr=[0.01], lr_changes=[], params_mul=10):
-        super().__init__(lr, lr_changes)
+    def __init__(self, params):
+        super().__init__(params)
         net = torchvision.models.__dict__["squeezenet1_1"](pretrained=True)
         net.classifier[1] = nn.Conv2d(
-            512, num_out, kernel_size=(1, 1), stride=(1, 1)
+            512, params['num_out'], kernel_size=(1, 1), stride=(1, 1)
         )
         self.features = nn.ModuleList(
             [f for f in net.features] +
@@ -125,10 +114,18 @@ class SqueezeNet(Model):
     def forward(self, x):
         for feature in self.features:
             x = feature(x)
-        return x
+        return x.flatten(1)
 
 
-MODELS = {
-    "softmax": SoftMaxModel,
-    "squeeze": SqueezeNet,
-}
+def load_model(params):
+    models = {
+        "softmax": SoftMaxModel,
+        "squeeze": SqueezeNet,
+    }
+    model_name = params['architecture']
+    if (chosen_model := models.get(model_name)) is None:
+        raise errors.MisconfigurationError(
+            f"Model '{model_name}' does not exist, " +
+            f"possible options: {set(models.keys())}"
+        )
+    return chosen_model(params)

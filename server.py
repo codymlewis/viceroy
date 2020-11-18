@@ -22,7 +22,7 @@ class Server:
         self.clients = []
         self.options = options
 
-    def fit(self, X, Y, epochs):
+    def fit(self, dataloader, epochs):
         accuracies, attack_successes = [], []
         criterion = nn.CrossEntropyLoss()
         for e in range(epochs):
@@ -31,13 +31,15 @@ class Server:
                 c.net.copy_params(self.net.get_params())
                 grads.append(c.fit()[1])
             self.net.fit(grads, self.options.params)
-            stats = utils.find_stats(self.net, X, Y, self.options)
+            stats = utils.find_stats(
+                self.net, dataloader, criterion, self.options
+            )
             accuracies.append(stats['accuracy'])
             attack_successes.append(stats['attack_success'])
             if self.options.verbosity > 0:
                 print(
                     f"Epoch: {e + 1}/{epochs}, " +
-                    f"Loss: {criterion(self.net.predict(X), Y[0]):.6f}, " +
+                    f"Loss: {stats['loss']:.6f}, " +
                     f"Accuracy: {stats['accuracy']:.6f}, " +
                     f"Attack Success Rate: {stats['attack_success']:.6f}",
                     end="\r" if self.options.verbosity < 2 else "\n"

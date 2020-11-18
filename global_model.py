@@ -6,16 +6,17 @@ Author: Cody Lewis
 
 import torch
 
-from models import MODELS
+from models import load_model
 import utils
 
 
 class GlobalModel:
     """The central global model for use within federated learning"""
     def __init__(self, num_in, num_out, options):
-        self.net = MODELS[options.architecture](
-            num_in, num_out, params_mul=options.params_mul
-        )
+        self.params = options.model_params
+        self.params['num_in'] = num_in
+        self.params['num_out'] = num_out
+        self.net = load_model(self.params).to(self.params['device'])
         self.histories = dict()
         self.fit_fun = {
             "federated averaging": fed_avg,
@@ -51,14 +52,14 @@ def fed_avg(net, grads, params):
 def find_feature_importance(net):
     """Get a vector indicating the importance of features in the network"""
     with torch.no_grad():
-        w_t = utils.flatten_params(net.get_params())
+        w_t = utils.flatten_params(net.get_params(), net.params)
         return abs(w_t - w_t.mean()) / sum(abs(w_t))
 
 
 def foolsgold(net, grads, params):
     """Perform FoolsGold learning across the client gradients"""
     with torch.no_grad():
-        flat_grads = utils.flatten_grads(grads)
+        flat_grads = utils.flatten_grads(grads, net.params)
         num_clients = len(grads)
         cs = torch.tensor(
             [[0 for _ in range(num_clients)] for _ in range(num_clients)],
@@ -75,7 +76,7 @@ def foolsgold(net, grads, params):
         if params['importance']:
             feature_importance = find_feature_importance(net)
         else:
-            feature_importance = torch.tensor([1])
+            feature_importance = torch.tensor([1]).to(net.params['device'])
         for i in range(num_clients):
             for j in {x for x in range(num_clients)} - {i}:
                 cs[i][j] = torch.cosine_similarity(
