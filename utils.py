@@ -61,10 +61,10 @@ def flatten_params(params, options):
         return flat_params
 
 
-def write_log(log_fn, stats):
+def write_log(log_file_name, stats):
     accuracies = np.mean(np.array(stats['accuracies']), axis=0)
     attack_successes = np.mean(np.array(stats['attack_successes']), axis=0)
-    with open(log_fn, "w") as f:
+    with open(log_file_name, "w") as f:
         f.write("epoch,accuracy,attack_success\n")
         for i, (a, b) in enumerate(zip(accuracies, attack_successes)):
             f.write(f"{i},{a},{b}\n")

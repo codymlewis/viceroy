@@ -6,4 +6,4 @@ tags
 data
 data/*
 results.log
-plot.png
+*.png

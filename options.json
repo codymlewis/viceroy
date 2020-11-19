@@ -1,17 +1,16 @@
 {
-        "dataset": "vggface",
-        "num_sims": 5,
+        "dataset": "kddcup99",
+        "num_sims": 1,
         "server_epochs": 300,
         "user_epochs": 1,
-        "users": 10,
+        "users": 23,
         "model_params": {
-                "architecture": "squeeze",
+                "architecture": "softmax",
                 "device": "cuda:0",
                 "batch_size": 160,
                 "params_mul": 10,
                 "learning_rate": [0.01],
                 "lr_changes": []
-
         },
         "fit_fun": "foolsgold",
         "params": {
@@ -20,12 +19,12 @@
         },
         "adversaries": {
                 "percent_adv": 0.5,
-                "type": "label flip",
-                "from": 0,
+                "type": "on off",
+                "from": 4,
                 "to": 8,
-                "toggle_time": 30
+                "toggle_times": [30, 30]
         },
-        "class_shards": [[0, 9],[1, 8],[2, 7],[3, 6],[4, 5],[5, 7],[6, 2],[7, 5],[8, 9],[9, 4]],
+        "class_shards": [[0, 22], [1, 21], [2, 20], [3, 19], [4, 18], [5, 17], [6, 16], [7, 15], [8, 14], [9, 13], [10, 12], [11, 11], [12, 1], [13, 10], [14, 7], [15, 11], [16, 9], [17, 13], [18, 6], [19, 21], [20, 3], [21, 14], [22, 19]],
         "classes_per_user": 2,
         "verbosity": 1,
         "result_log_file": "./results.log"

@@ -10,7 +10,7 @@ import random
 
 import torch
 
-from adversaries import ADVERSARY_TYPES
+from adversaries import load_adversary
 from client import Client
 import errors
 from server import Server
@@ -38,9 +38,10 @@ def find_shards(num_users, num_classes, classes_per_user):
         [
             i % num_classes,
             (num_classes - i - 1) % num_classes
-            if i < num_users / classes_per_user else end_halves[0][i % num_classes]
-            ] + ([eh[i % num_classes] for eh in end_halves[1:]] if
-            classes_per_user > 2 else [])
+            if i < num_users / classes_per_user else
+            end_halves[0][i % num_classes]
+        ] + ([eh[i % num_classes] for eh in end_halves[1:]] if
+             classes_per_user > 2 else [])
         for i in range(num_users)
     ]
 
@@ -70,8 +71,9 @@ if __name__ == '__main__':
             shuffle=False,
         )
         user_classes = [
-            Client if i <= options.users * (1 - options.adversaries['percent_adv'])
-            else ADVERSARY_TYPES[options.adversaries['type']]
+            Client if i <= options.users * (
+                1 - options.adversaries['percent_adv'])
+            else load_adversary(options.adversaries['type'])
             for i in range(1, options.users + 1)
         ]
         if options.class_shards:
@@ -89,7 +91,11 @@ if __name__ == '__main__':
         experiment_stats = {"accuracies": [], "attack_successes": []}
         for i in range(options.num_sims):
             print(f"Simulation {i + 1}/{options.num_sims}")
-            server = Server(val_data['x_dim'], val_data['y_dim'], options)
+            server = Server(
+                max(train_data['x_dim'], val_data['x_dim']),
+                max(train_data['y_dim'], val_data['y_dim']),
+                options
+            )
             server.add_clients(
                 [
                     u(

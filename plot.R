@@ -3,9 +3,10 @@
 library(ggplot2)
 library(jsonlite)
 library(stringr)
+library(itertools)
 
 
-main <- function(results, plot_img) {
+main <- function(results) {
         options <- fromJSON("options.json")
         attack <- `if`(options$adversaries$type == "on off",
                 sprintf(
@@ -34,35 +35,47 @@ main <- function(results, plot_img) {
         )
         df <- read.csv(results)
         df$epoch <- 1:length(df$accuracy)
-
         gp <- ggplot(data=df, aes(x=epoch))
         if(options$adversaries$percent_adv > 0 &&
            options$adversaries$type == "on off") {
-                off <- as.logical(ceiling(df$epoch / options$adversaries$toggle_time) %% 2)
-                status <- rep(1, length(df$epoch))
-                status[off] <- 0
-                start <- df$epoch[status == 0]
-                end <- df$epoch[status == 1]
-                vals <- seq(1, length(df$epoch), by=options$adversaries$toggle_time)
-                vals <- c(vals[-1], length(df$epoch))
-                ids <- 1:length(vals) %% 2
-                rects <- data.frame(start=vals[ids == 0], end=vals[ids == 1], group=seq_along(start))
+                vals <- c(0)
+                attacking <- c()
+                toggles <- recycle(options$adversaries$toggle_times)
+                while(tail(vals, 1) < length(df$epoch)) {
+                        toggle <- nextElem(toggles)
+                        vals <- c(vals, tail(vals, 1) + toggle)
+                        attacking <- c(attacking, rep(
+                                `if`(
+                                        length(attacking) == 0,
+                                        0,
+                                        `if`(tail(attacking, 1) == 1, 0, 1)
+                                ),
+                                toggle
+                        ))
+                }
+                vals <- c(vals[c(-1, -length(vals))], length(df$epoch))
+                start <- df$epoch[attacking == 0]
+                end <- df$epoch[attacking == 1]
+                ids <- c(1:length(vals) %% 2, `if`(length(vals) %% 2 == 1, 0, NULL))
+                rects <- data.frame(
+                        start=vals[ids == 1],
+                        end=vals[ids == 0],
+                        group=rep(c("on", "off"), length(ids) / 2)
+                )
                 gp <- gp + geom_rect(
                         data=rects,
                         inherit.aes=FALSE,
                         aes(
-                                xmin=start,
-                                xmax=end,
-                                ymin=0,
-                                ymax=1,
-                                group=group
+                            xmin=start,
+                            xmax=end,
+                            ymin=0,
+                            ymax=1,
                         ),
                         color="transparent",
                         fill="orange",
-                        alpha=0.01
+                        alpha=0.3
                 )
         }
-
         gp +
                 `if`(options$adversaries$percent_adv > 0,
                         geom_line(
@@ -85,11 +98,19 @@ main <- function(results, plot_img) {
                         legend.position="bottom",
                         plot.title=element_text(size=11)
                 )
+        plot_img <- str_replace_all(
+                sprintf(
+                        "%s %d %s.png",
+                        options$fit_fun,
+                        options$adversaries$percent_adv * 100,
+                        options$adversaries$type),
+                " ",
+                "_"
+        )
         ggsave(plot_img)
+        return(plot_img)
 }
 
 RESULTS <- "results.log"
-PLOT <- "plot.png"
-cat(sprintf("Plotting results in %s\n", RESULTS))
-main(RESULTS, PLOT)
+PLOT <- main(RESULTS)
 cat(sprintf("Done. Saved plot to %s\n", PLOT))
