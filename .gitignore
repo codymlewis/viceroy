@@ -5,5 +5,5 @@ Session.vim
 tags
 data
 data/*
-results.log
+results.pt
 *.png

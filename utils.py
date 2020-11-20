@@ -8,36 +8,72 @@ from typing import NamedTuple
 import json
 
 import torch
+from sklearn.metrics import confusion_matrix as cm
 
 import numpy as np
 
 
-def find_stats(model, dataloader, criterion, options):
-    """Find statistics on the model based on validation data"""
-    denom = 0
-    as_denom = 0
-    accuracy = 0
-    attack_success = 0
-    loss = 0
-    for x, y in dataloader:
-        with torch.no_grad():
+def gen_confusion_matrix(model, dataloader, criterion, nb_classes, options):
+    with torch.no_grad():
+        loss = 0
+        denom = 0
+        confusion_matrix = torch.zeros(nb_classes, nb_classes, dtype=int)
+        for x, y in dataloader:
             x = x.to(options.model_params['device'])
             y = y.to(options.model_params['device'])
             predictions = model.predict(x)
             loss += criterion(predictions, y)
-            predictions = torch.argmax(predictions, dim=1)
-            accuracy += (predictions == y).sum().item()
-            ids = y == options.adversaries['from']
-            attack_success += (
-                predictions[ids] == options.adversaries['to']
-            ).sum().item()
             denom += len(y)
-            as_denom += ids.sum().item()
+            predictions = torch.argmax(predictions, dim=1)
+            confusion_matrix += torch.from_numpy(
+                cm(predictions.cpu(), y.cpu(), labels=np.arange(nb_classes))
+            )
+        return loss / denom * 100, confusion_matrix
+
+
+def gen_conf_stats(confusion_matrix, options):
+    accuracy = 0
+    total = 0
+    attack_success_n = 0
+    attack_success_d = 0
+    for x, row in enumerate(confusion_matrix):
+        for y, cell in enumerate(row):
+            cell = int(cell)
+            if x == y:
+                accuracy += cell
+            if y == options.adversaries['from']:
+                if x == options.adversaries['to']:
+                    attack_success_n += cell
+                attack_success_d += cell
+            total += cell
+    f = lambda x, y: x / y if y > 0 else 0
     return {
-        "accuracy": accuracy / denom,
-        "attack_success": attack_success / as_denom,
-        "loss": loss / denom * 100,
+        "accuracy": f(accuracy, total),
+        "attack_success": f(attack_success_n, attack_success_d)
     }
+
+
+def gen_experiment_stats(sim_confusion_matrices, options):
+    stats = merge_dicts(
+        [gen_sim_stats(c, options) for c in sim_confusion_matrices]
+    )
+    for k, v in stats.items():
+        stats[k] = torch.tensor(v)
+    return stats
+
+
+def gen_sim_stats(confusion_matrices, options):
+    return merge_dicts(
+        [gen_conf_stats(c, options) for c in confusion_matrices]
+    )
+
+
+def merge_dicts(dict_list):
+    merged = {k: [] for k in dict_list[0].keys()}
+    for d in dict_list:
+        for k, v in d.items():
+            merged[k].append(v)
+    return merged
 
 
 def flatten_grads(grads, params):
@@ -70,6 +106,10 @@ def write_log(log_file_name, stats):
             f.write(f"{i},{a},{b}\n")
 
 
+def write_results(result_file, confusion_matrices):
+    torch.save(confusion_matrices, result_file)
+
+
 class Options(NamedTuple):
     """Structure out the data from the options file"""
     dataset: str
@@ -84,7 +124,7 @@ class Options(NamedTuple):
     class_shards: list
     classes_per_user: int
     verbosity: int
-    result_log_file: str
+    result_file: str
 
     def __str__(self):
         new_line = '\n'
@@ -97,7 +137,7 @@ class Options(NamedTuple):
 Dataset: {self.dataset}
 Number of simulations: {self.num_sims}
 Verbosity: {self.verbosity}
-Log file: {self.result_log_file}
+Results file: {self.result_file}
 
 -----[   Model   ]-----
 {new_line.join([f"{k}: {v}" for k, v in self.model_params.items()])}
@@ -138,6 +178,6 @@ def load_options():
             options['class_shards'],
             options['classes_per_user'],
             options['verbosity'],
-            options['result_log_file']
+            options['result_file']
         )
     return None

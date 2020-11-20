@@ -9,6 +9,7 @@ Author: Cody Lewis
 import random
 
 import torch
+import numpy as np
 
 from adversaries import load_adversary
 from client import Client
@@ -88,7 +89,7 @@ if __name__ == '__main__':
             print("Assigned class shards:")
             print(class_shards)
             print()
-        experiment_stats = {"accuracies": [], "attack_successes": []}
+        sim_confusion_matrices = torch.tensor([], dtype=int)
         for i in range(options.num_sims):
             print(f"Simulation {i + 1}/{options.num_sims}")
             server = Server(
@@ -105,21 +106,32 @@ if __name__ == '__main__':
                 ]
             )
             print("Starting training...")
-            accuracies, attack_successes = server.fit(
+            confusion_matrices = server.fit(
                 val_data['dataloader'], options.server_epochs
             )
-            experiment_stats['accuracies'].append(accuracies)
-            experiment_stats['attack_successes'].append(attack_successes)
+            sim_confusion_matrices = torch.cat(
+                (sim_confusion_matrices, confusion_matrices.unsqueeze(dim=0))
+            )
             if options.verbosity > 0:
                 print("Done training.")
             criterion = torch.nn.CrossEntropyLoss()
-            stats = utils.find_stats(
-                server.net, train_data['dataloader'], criterion, options
+            loss, conf_mat = utils.gen_confusion_matrix(
+                server.net,
+                train_data['dataloader'],
+                criterion,
+                server.nb_classes,
+                options
             )
-            stats_val = utils.find_stats(
-                server.net, val_data['dataloader'], criterion, options
+            stats = utils.gen_conf_stats(conf_mat, options)
+            loss_val, conf_mat = utils.gen_confusion_matrix(
+                server.net,
+                val_data['dataloader'],
+                criterion,
+                server.nb_classes,
+                options
             )
-            print(f"Loss: t: {stats['loss']}, v: {stats_val['loss']}")
+            stats_val = utils.gen_conf_stats(conf_mat, options)
+            print(f"Loss: t: {loss}, v: {loss_val}")
             print(f"Accuracy: t: {stats['accuracy'] * 100}%, ", end="")
             print(f"v: {stats_val['accuracy'] * 100}%")
             print(
@@ -129,8 +141,9 @@ if __name__ == '__main__':
             print(f"v: {stats_val['attack_success'] * 100}%")
             print()
         if options.verbosity > 0:
-            print(f"Writing averaged results to {options.result_log_file}...")
-        utils.write_log(options.result_log_file, experiment_stats)
+            print(f"Writing confusion matrices to {options.result_file}...")
+        utils.write_results(options.result_file, sim_confusion_matrices)
+        # print(utils.gen_experiment_stats(sim_confusion_matrices, options))
         if options.verbosity > 0:
             print("Done.")
     except errors.MisconfigurationError as e:
