@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 
+import math
 from itertools import cycle
+import re
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -11,22 +13,31 @@ import torch
 
 import utils
 
-
-if __name__ == '__main__':
-    print("Calculating statistics and generating plot...")
-    options = utils.load_options()
+def gen_stats(options):
     sim_confusion_matrices = torch.load(options.result_file)
-    stats = utils.gen_experiment_stats(sim_confusion_matrices, options)
-    epochs = torch.arange(len(stats['accuracy'][0]))
+    return utils.gen_experiment_stats(sim_confusion_matrices, options)
+
+def save_plot(options, stats, filter_fn, img_name):
+    y_min, y_max = 0, 0
+    for k, v in stats.items():
+        if filter_fn(k):
+            y_min = min(y_min, math.floor(v.min()))
+            y_max = max(y_max, math.ceil(v.max()))
+    epochs = torch.arange(options.server_epochs)
     fig, ax = plt.subplots()
     if options.adversaries['percent_adv'] > 0:
         if options.adversaries['type'] == "on off":
             title = "On-Off Attack with {} Epoch Toggle".format(
                 options.adversaries['toggle_times']
             )
-            i = 0
             toggles = cycle(options.adversaries['toggle_times'])
-            on = False
+            if options.adversaries['delay'] is not None:
+                i = options.adversaries['delay']
+                on = True
+                next(toggles)
+            else:
+                i = 0
+                on = False
             nb_epochs = max(epochs)
             while i < nb_epochs:
                 toggle = next(toggles)
@@ -34,9 +45,9 @@ if __name__ == '__main__':
                     rect_width = min(nb_epochs - i, toggle)
                     ax.add_patch(
                         Rectangle(
-                            (i, 0),
+                            (i, y_min),
                             rect_width,
-                            1,
+                            abs(y_max - y_min),
                             color="red",
                             alpha=0.2
                         ),
@@ -51,20 +62,36 @@ if __name__ == '__main__':
             options.adversaries['to'],
             title
         )
+        if options.adversaries['delay'] is not None:
+            title += f" with a {options.adversaries['delay']} Epoch Delay"
     else:
         title = "No Attack"
     title = f"Performance of {options.fit_fun} under {title}"
     for k in stats.keys():
-        ax.plot(epochs, stats[k].mean(dim=0), label=k.replace('_', ' '))
+        if filter_fn(k):
+            ax.plot(epochs, stats[k].mean(dim=0), label=k.replace('_', ' '))
     plt.xlabel("Epochs")
     plt.ylabel("Rate")
-    plt.title(title.title(), fontdict={'fontsize': 8})
+    plt.title(title.title(), fontdict={'fontsize': 7})
     plt.legend(loc=1, fontsize=5, framealpha=0.4)
-    img_name = "{}_{}_{}_{}.png".format(
+    plt.savefig(img_name, dpi=320, metadata={'comment': str(options)})
+    print(f"Done. Saved plot as {img_name}")
+
+
+if __name__ == '__main__':
+    print("Calculating statistics and generating plots...")
+    options = utils.load_options()
+    stats = gen_stats(options)
+    img_name = "{}_{}_{}_{}_{}".format(
         options.dataset,
         options.fit_fun,
         options.adversaries['percent_adv'] * 100,
-        options.adversaries['type']
+        options.adversaries['type'] + f"_{options.adversaries['toggle_times']}"
+        if options.adversaries['type'] == "on off" else "",
+        f"{d}_delay" if (d := options.adversaries['delay']) is not None
+        else 'no_delay'
     ).replace(' ', '_')
-    plt.savefig(img_name, dpi=320, metadata={'comment': str(options)})
-    print(f"Done. Saved plot as {img_name}")
+    match_acc = lambda k: re.match('accuracy_\d', k)
+    save_plot(options, stats, lambda k: match_acc(k) is None, f"{img_name}.png")
+    save_plot(options, stats, lambda k: match_acc(k) is not None,
+            f"{img_name}_accuracies.png")

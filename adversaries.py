@@ -15,8 +15,21 @@ import errors
 class Flipper(Client):
     """A simple label-flipping model poisoner"""
     def __init__(self, options, classes):
-        super().__init__(options, [options.adversaries['from']])
-        self.data['dataloader'].dataset.targets[:] = options.adversaries['to']
+        super().__init__(options, classes)
+        self.shadow_data = load_data(options, [options.adversaries['from']])
+        self.shadow_data['dataloader'].dataset.targets[:] = \
+            options.adversaries['to']
+        self.epochs = 0
+        if options.adversaries['delay'] is None:
+            self.delay_time = 0
+        else:
+            self.delay_time = options.adversaries['delay']
+
+    def fit(self, verbose=False):
+        if self.epochs == self.delay_time:
+            self.data = self.shadow_data
+        self.epochs += 1
+        return super().fit(verbose=verbose)
 
 
 class OnOff(Client):
@@ -31,7 +44,11 @@ class OnOff(Client):
             options.adversaries['to']
         self.toggle_time = cycle(self.options.adversaries['toggle_times'])
         self.epochs = 0
-        self.next_switch = self.epochs + next(self.toggle_time)
+        if self.options.adversaries['delay'] is None:
+            self.next_switch = self.epochs + next(self.toggle_time)
+        else:
+            self.next_switch = self.epochs + self.options.adversaries['delay']
+            next(self.toggle_time)
 
     def fit(self, verbose=False):
         if self.epochs == self.next_switch:

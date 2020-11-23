@@ -53,6 +53,7 @@ class Server:
                     f"[ E: {e + 1}/{epochs}, " +
                     f"L: {loss:.6f}, " +
                     f"Acc: {stats['accuracy']:.6f}, " +
+                    f"MCC: {stats['MCC']:.6f}, " +
                     f"ASR: {stats['attack_success']:.6f}, " +
                     f"T: {time.time() - start:.6f}s ]",
                     end="\r" if self.options.verbosity < 2 else "\n"

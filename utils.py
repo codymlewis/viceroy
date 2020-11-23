@@ -5,6 +5,7 @@ Author: Cody Lewis
 """
 
 from typing import NamedTuple
+import math
 import json
 
 import torch
@@ -36,22 +37,33 @@ def gen_conf_stats(confusion_matrix, options):
     total = 0
     attack_success_n = 0
     attack_success_d = 0
+    class_acc = [[0, 0] for _ in confusion_matrix]
+    t = torch.tensor([0 for _ in confusion_matrix])
+    p = torch.tensor([0 for _ in confusion_matrix])
     for x, row in enumerate(confusion_matrix):
         for y, cell in enumerate(row):
             cell = int(cell)
+            t[y] += cell
+            p[x] += cell
             if x == y:
                 accuracy += cell
+                class_acc[y][0] += cell
             if y == options.adversaries['from']:
                 if x == options.adversaries['to']:
                     attack_success_n += cell
                 attack_success_d += cell
             total += cell
+            class_acc[y][1] += cell
     f = lambda x, y: x / y if y > 0 else 0
-    return {
+    stats = {
         "accuracy": f(accuracy, total),
-        "attack_success": f(attack_success_n, attack_success_d)
+        "attack_success": f(attack_success_n, attack_success_d),
+        "MCC": f((accuracy * total - t.dot(p)),
+            (math.sqrt(total**2 - p.dot(p)) * math.sqrt(total**2 - t.dot(t))))
     }
-
+    for i, acc in enumerate(class_acc):
+        stats[f"accuracy_{i}"] = f(acc[0], acc[1])
+    return stats
 
 def gen_experiment_stats(sim_confusion_matrices, options):
     stats = merge_dicts(
