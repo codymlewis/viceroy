@@ -6,7 +6,7 @@ Author: Cody Lewis
 
 import torch
 
-from models import load_model
+from utils.models import load_model
 import utils
 
 

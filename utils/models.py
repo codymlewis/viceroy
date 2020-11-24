@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 
-import errors
+import utils.errors
 
 
 class Model(nn.Module):
@@ -132,7 +132,7 @@ def load_model(params):
     }
     model_name = params['architecture']
     if (chosen_model := models.get(model_name)) is None:
-        raise errors.MisconfigurationError(
+        raise utils.errors.MisconfigurationError(
             f"Model '{model_name}' does not exist, " +
             f"possible options: {set(models.keys())}"
         )

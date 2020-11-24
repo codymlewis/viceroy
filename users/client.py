@@ -4,8 +4,8 @@ Classes and functions for the client networking aspect of federated learning
 Author: Cody Lewis
 """
 
-from models import load_model
-from datasets import load_data
+from utils.models import load_model
+from utils.datasets import load_data
 
 
 class Client:

@@ -7,9 +7,9 @@ Author: Cody Lewis
 
 from itertools import cycle
 
-from client import Client
-from datasets import load_data
-import errors
+from users.client import Client
+from utils.datasets import load_data
+import utils.errors
 
 
 class Flipper(Client):
@@ -67,7 +67,7 @@ def load_adversary(adversary_name):
         "on off": OnOff,
     }
     if (chosen_adversary := adversaries.get(adversary_name)) is None:
-        raise errors.MisconfigurationError(
+        raise utils.errors.MisconfigurationError(
             f"Model '{adversary_name}' does not exist, " +
             f"possible options: {set(adversaries.keys())}"
         )

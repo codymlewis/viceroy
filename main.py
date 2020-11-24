@@ -9,14 +9,13 @@ Author: Cody Lewis
 import random
 
 import torch
-import numpy as np
 
-from adversaries import load_adversary
-from client import Client
-import errors
+from users.adversaries import load_adversary
+from users.client import Client
+import utils.errors
 from server import Server
 import utils
-from datasets import load_data
+from utils.datasets import load_data
 
 
 def index_match(arr):
@@ -48,10 +47,11 @@ def find_shards(num_users, num_classes, classes_per_user):
 
 
 def run(program_flow, current, run_data):
+    """Run a part of the program"""
     try:
         program_flow[current](run_data)
         return run_data
-    except errors.MisconfigurationError as e:
+    except utils.errors.MisconfigurationError as e:
         print(f"Miconfiguratation Error: {e}")
     except KeyboardInterrupt:
         print()
@@ -63,6 +63,7 @@ def run(program_flow, current, run_data):
 
 
 def system_setup(run_data):
+    """Setup the system"""
     run_data["options"] = utils.load_options()
     if run_data["options"].verbosity > 0:
         print("Options set as:")
@@ -72,7 +73,7 @@ def system_setup(run_data):
         c = int(dev_name[dev_name.find(':') + 1:]) + 1
         q = c > torch.cuda.device_count()
         if p or q:
-            raise errors.MisconfigurationError(
+            raise utils.errors.MisconfigurationError(
                 f"Device '{dev_name}' is not available on this machine"
             )
     run_data["train_data"] = load_data(
@@ -88,7 +89,9 @@ def system_setup(run_data):
     run_data['sim_number'] = 0
     return run_data
 
+
 def setup_users(run_data):
+    """Setup the users/clients for the system"""
     run_data["user_classes"] = [
         Client if i <= run_data["options"].users * (
             1 - run_data["options"].adversaries['percent_adv'])
@@ -112,6 +115,7 @@ def setup_users(run_data):
 
 
 def run_simulations(run_data):
+    """Run the simulations"""
     run_data["sim_confusion_matrices"] = torch.tensor([], dtype=int)
     for i in range(run_data['sim_number'], run_data["options"].num_sims):
         print(f"Simulation {i + 1}/{run_data['options'].num_sims}")
@@ -189,6 +193,7 @@ def run_simulations(run_data):
 
 
 def write_results(run_data):
+    """Write all of the recorded results from the experiments"""
     if run_data["options"].verbosity > 0:
         print()
         print(f"Writing confusion matrices to {run_data['options'].result_file}...")
@@ -199,7 +204,6 @@ def write_results(run_data):
     if run_data["options"].verbosity > 0:
         print("Done.")
     return run_data
-
 
 
 if __name__ == '__main__':

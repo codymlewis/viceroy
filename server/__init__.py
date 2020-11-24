@@ -10,7 +10,7 @@ import time
 import torch
 import torch.nn as nn
 
-from global_model import GlobalModel
+from server.global_model import GlobalModel
 import utils
 
 

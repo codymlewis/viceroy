@@ -15,7 +15,7 @@ from torch.utils.data.dataset import Dataset
 import pandas as pd
 from PIL import Image
 
-import errors
+import utils.errors
 
 
 class DatasetWrapper(Dataset):
@@ -204,7 +204,7 @@ def load_data(options, train=True, shuffle=True, classes=None):
         "vggface": VGGFace,
     }
     if (chosen_set := datasets.get(options.dataset)) is None:
-        raise errors.MisconfigurationError(
+        raise utils.errors.MisconfigurationError(
             f"Dataset '{options.dataset}' does not exist, " +
             f"possible options: {set(datasets.keys())}"
         )
