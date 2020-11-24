@@ -1,5 +1,5 @@
 """
-Defines the adversaries within the system
+Defines the adversaries within the system and a function to load them
 
 Author: Cody Lewis
 """
@@ -61,6 +61,7 @@ class OnOff(Client):
 
 
 def load_adversary(adversary_name):
+    """Load the class of the specified adversary"""
     adversaries = {
         "label flip": Flipper,
         "on off": OnOff,

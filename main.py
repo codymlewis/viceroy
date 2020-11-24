@@ -29,8 +29,8 @@ def index_match(arr):
 
 def find_shards(num_users, num_classes, classes_per_user):
     """Find data class shards according to the parameters"""
-    end_halves = [[i for i in range(num_classes)]
-            for _ in range(classes_per_user - 1)]
+    end_halves = [list(range(num_classes))
+                  for _ in range(classes_per_user - 1)]
     if num_classes / classes_per_user < num_users:
         for end_half in end_halves:
             while index_match(end_half):
@@ -47,104 +47,171 @@ def find_shards(num_users, num_classes, classes_per_user):
     ]
 
 
-if __name__ == '__main__':
+def run(program_flow, current, run_data):
     try:
-        options = utils.load_options()
-        if options.verbosity > 0:
-            print("Options set as:")
-            print(options)
-        if 'cuda' in (dev_name := options.model_params['device']):
-            p = not torch.cuda.is_available()
-            c = int(dev_name[dev_name.find(':') + 1:]) + 1
-            q = c > torch.cuda.device_count()
-            if p or q:
-                raise errors.MisconfigurationError(
-                    f"Device '{dev_name}' is not available on this machine"
-                )
-        train_data = load_data(
-            options,
-            train=True,
-            shuffle=False,
-        )
-        val_data = load_data(
-            options,
-            train=False,
-            shuffle=False,
-        )
-        user_classes = [
-            Client if i <= options.users * (
-                1 - options.adversaries['percent_adv'])
-            else load_adversary(options.adversaries['type'])
-            for i in range(1, options.users + 1)
-        ]
-        if options.class_shards:
-            class_shards = options.class_shards
-        else:
-            class_shards = find_shards(
-                options.users,
-                val_data['y_dim'],
-                options.classes_per_user
-            )
-        if options.class_shards is None and options.verbosity > 0:
-            print("Assigned class shards:")
-            print(class_shards)
-            print()
-        sim_confusion_matrices = torch.tensor([], dtype=int)
-        for i in range(options.num_sims):
-            print(f"Simulation {i + 1}/{options.num_sims}")
-            server = Server(
-                max(train_data['x_dim'], val_data['x_dim']),
-                max(train_data['y_dim'], val_data['y_dim']),
-                options
-            )
-            server.add_clients(
-                [
-                    u(
-                        options,
-                        class_shards[i]
-                    ) for i, u in enumerate(user_classes)
-                ]
-            )
-            print("Starting training...")
-            confusion_matrices = server.fit(
-                val_data['dataloader'], options.server_epochs
-            )
-            sim_confusion_matrices = torch.cat(
-                (sim_confusion_matrices, confusion_matrices.unsqueeze(dim=0))
-            )
-            if options.verbosity > 0:
-                print("Done training.")
-            criterion = torch.nn.CrossEntropyLoss()
-            loss, conf_mat = utils.gen_confusion_matrix(
-                server.net,
-                train_data['dataloader'],
-                criterion,
-                server.nb_classes,
-                options
-            )
-            stats = utils.gen_conf_stats(conf_mat, options)
-            loss_val, conf_mat = utils.gen_confusion_matrix(
-                server.net,
-                val_data['dataloader'],
-                criterion,
-                server.nb_classes,
-                options
-            )
-            stats_val = utils.gen_conf_stats(conf_mat, options)
-            print(f"Loss: t: {loss}, v: {loss_val}")
-            print(f"Accuracy: t: {stats['accuracy'] * 100}%, ", end="")
-            print(f"v: {stats_val['accuracy'] * 100}%")
-            print(
-                f"Attack success rate: t: {stats['attack_success'] * 100}%, ",
-                end=""
-            )
-            print(f"v: {stats_val['attack_success'] * 100}%")
-            print()
-        if options.verbosity > 0:
-            print(f"Writing confusion matrices to {options.result_file}...")
-        utils.write_results(options.result_file, sim_confusion_matrices)
-        # print(utils.gen_experiment_stats(sim_confusion_matrices, options))
-        if options.verbosity > 0:
-            print("Done.")
+        program_flow[current](run_data)
+        return run_data
     except errors.MisconfigurationError as e:
         print(f"Miconfiguratation Error: {e}")
+    except KeyboardInterrupt:
+        print()
+        decision = input('Are you sure you want to quit? ')
+        if decision.lower().find('y') >= 0:
+            run_data['quit'] = True
+            return run_data
+        return run(program_flow, current, data)
+
+
+def system_setup(run_data):
+    run_data["options"] = utils.load_options()
+    if run_data["options"].verbosity > 0:
+        print("Options set as:")
+        print(run_data["options"])
+    if 'cuda' in (dev_name := run_data["options"].model_params['device']):
+        p = not torch.cuda.is_available()
+        c = int(dev_name[dev_name.find(':') + 1:]) + 1
+        q = c > torch.cuda.device_count()
+        if p or q:
+            raise errors.MisconfigurationError(
+                f"Device '{dev_name}' is not available on this machine"
+            )
+    run_data["train_data"] = load_data(
+        run_data["options"],
+        train=True,
+        shuffle=False,
+    )
+    run_data["val_data"] = load_data(
+        run_data["options"],
+        train=False,
+        shuffle=False,
+    )
+    run_data['sim_number'] = 0
+    return run_data
+
+def setup_users(run_data):
+    run_data["user_classes"] = [
+        Client if i <= run_data["options"].users * (
+            1 - run_data["options"].adversaries['percent_adv'])
+        else load_adversary(run_data["options"].adversaries['type'])
+        for i in range(1, run_data["options"].users + 1)
+    ]
+    if run_data["options"].class_shards:
+        run_data["class_shards"] = run_data["options"].class_shards
+    else:
+        run_data["class_shards"] = find_shards(
+            run_data["options"].users,
+            run_data["val_data"]['y_dim'],
+            run_data["options"].classes_per_user
+        )
+    if run_data["options"].class_shards is None and \
+            run_data["options"].verbosity > 0:
+        print("Assigned class shards:")
+        print(run_data["class_shards"])
+        print()
+    return run_data
+
+
+def run_simulations(run_data):
+    run_data["sim_confusion_matrices"] = torch.tensor([], dtype=int)
+    for i in range(run_data['sim_number'], run_data["options"].num_sims):
+        print(f"Simulation {i + 1}/{run_data['options'].num_sims}")
+        if not run_data.get('sim_setup'):
+            run_data["server"] = Server(
+                max(
+                    run_data["train_data"]['x_dim'],
+                    run_data["val_data"]['x_dim']
+                ),
+                max(
+                    run_data["train_data"]['y_dim'],
+                    run_data["val_data"]['y_dim']
+                ),
+                run_data["options"]
+            )
+            run_data["server"].add_clients(
+                [
+                    u(
+                        run_data["options"],
+                        run_data["class_shards"][i]
+                    ) for i, u in enumerate(run_data["user_classes"])
+                ]
+            )
+            run_data['sim_setup'] = True
+            run_data['epoch'] = 0
+        print("Starting training...")
+        for run_data['epoch'] in range(run_data['epoch'],
+                run_data['options'].server_epochs):
+            run_data["server"].fit(
+                run_data["val_data"]['dataloader'],
+                run_data['epoch'],
+                run_data["options"].server_epochs
+            )
+        confusion_matrices = run_data['server'].get_conf_matrices()
+        if run_data["options"].verbosity > 0:
+            print()
+        run_data["sim_confusion_matrices"] = torch.cat(
+            (
+                run_data["sim_confusion_matrices"],
+                confusion_matrices.unsqueeze(dim=0)
+            )
+        )
+        print()
+        run_data['sim_setup'] = False
+        run_data['sim_number'] += 1
+        if run_data["options"].verbosity > 0:
+            print("Done training.")
+        criterion = torch.nn.CrossEntropyLoss()
+        loss, conf_mat = utils.gen_confusion_matrix(
+            run_data["server"].net,
+            run_data["train_data"]['dataloader'],
+            criterion,
+            run_data["server"].nb_classes,
+            run_data["options"]
+        )
+        stats = utils.gen_conf_stats(conf_mat, run_data["options"])
+        loss_val, conf_mat = utils.gen_confusion_matrix(
+            run_data["server"].net,
+            run_data["val_data"]['dataloader'],
+            criterion,
+            run_data["server"].nb_classes,
+            run_data["options"]
+        )
+        stats_val = utils.gen_conf_stats(conf_mat, run_data["options"])
+        print(f"Loss: t: {loss}, v: {loss_val}")
+        print(f"Accuracy: t: {stats['accuracy'] * 100}%, ", end="")
+        print(f"v: {stats_val['accuracy'] * 100}%")
+        print(f"MCC: t: {stats['MCC']}, v: {stats_val['MCC']}")
+        print(
+            f"Attack success rate: t: {stats['attack_success'] * 100}%, ",
+            end=""
+        )
+        print(f"v: {stats_val['attack_success'] * 100}%")
+    return run_data
+
+
+def write_results(run_data):
+    if run_data["options"].verbosity > 0:
+        print()
+        print(f"Writing confusion matrices to {run_data['options'].result_file}...")
+    utils.write_results(
+        run_data["options"].result_file,
+        run_data["sim_confusion_matrices"]
+    )
+    if run_data["options"].verbosity > 0:
+        print("Done.")
+    return run_data
+
+
+
+if __name__ == '__main__':
+    program_flow = {
+        "system_setup": system_setup,
+        "setup_users": setup_users,
+        "run_simulations": run_simulations,
+        "write_results": write_results
+    }
+    data = {"quit": False}
+    for k in program_flow.keys():
+        data = run(program_flow, k, data)
+        if data['quit']:
+            print("bye.")
+            break

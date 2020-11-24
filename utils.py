@@ -15,6 +15,9 @@ import numpy as np
 
 
 def gen_confusion_matrix(model, dataloader, criterion, nb_classes, options):
+    """
+    Give the loss of the model across the data and Generate a confusion matrix
+    """
     with torch.no_grad():
         loss = 0
         denom = 0
@@ -33,6 +36,7 @@ def gen_confusion_matrix(model, dataloader, criterion, nb_classes, options):
 
 
 def gen_conf_stats(confusion_matrix, options):
+    """Find some statistics based on the given confusion_matrix"""
     accuracy = 0
     total = 0
     attack_success_n = 0
@@ -54,7 +58,7 @@ def gen_conf_stats(confusion_matrix, options):
                 attack_success_d += cell
             total += cell
             class_acc[y][1] += cell
-    f = lambda x, y: x / y if y > 0 else 0
+    f = lambda x, y: x / y if y > 0 else 0.
     stats = {
         "accuracy": f(accuracy, total),
         "attack_success": f(attack_success_n, attack_success_d),
@@ -65,7 +69,9 @@ def gen_conf_stats(confusion_matrix, options):
         stats[f"accuracy_{i}"] = f(acc[0], acc[1])
     return stats
 
+
 def gen_experiment_stats(sim_confusion_matrices, options):
+    """Find the statistics across multiple simulations"""
     stats = merge_dicts(
         [gen_sim_stats(c, options) for c in sim_confusion_matrices]
     )
@@ -75,12 +81,14 @@ def gen_experiment_stats(sim_confusion_matrices, options):
 
 
 def gen_sim_stats(confusion_matrices, options):
+    """Find the stastics of one simulation"""
     return merge_dicts(
         [gen_conf_stats(c, options) for c in confusion_matrices]
     )
 
 
 def merge_dicts(dict_list):
+    """Merge two dictionaries"""
     merged = {k: [] for k in dict_list[0].keys()}
     for d in dict_list:
         for k, v in d.items():
@@ -109,16 +117,8 @@ def flatten_params(params, options):
         return flat_params
 
 
-def write_log(log_file_name, stats):
-    accuracies = np.mean(np.array(stats['accuracies']), axis=0)
-    attack_successes = np.mean(np.array(stats['attack_successes']), axis=0)
-    with open(log_file_name, "w") as f:
-        f.write("epoch,accuracy,attack_success\n")
-        for i, (a, b) in enumerate(zip(accuracies, attack_successes)):
-            f.write(f"{i},{a},{b}\n")
-
-
 def write_results(result_file, confusion_matrices):
+    """Write the results of an experiment to a pickle file"""
     torch.save(confusion_matrices, result_file)
 
 

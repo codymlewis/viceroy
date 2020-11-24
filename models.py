@@ -1,8 +1,10 @@
 """
-Pytorch implementation of a softmax perceptron
+A model for ML Models and a function to load them
 
 Author: Cody Lewis
 """
+
+from abc import abstractmethod
 
 import torch.nn as nn
 import torch.optim as optim
@@ -20,6 +22,10 @@ class Model(nn.Module):
         del self.learning_rates[0]
         self.lr_changes = params['lr_changes'].copy()
         self.epoch_count = 0
+
+    @abstractmethod
+    def forward(self, *x):
+        pass
 
     def fit(self, data, epochs=1, verbose=True):
         """
@@ -99,6 +105,7 @@ class SoftMaxModel(Model):
 
 
 class SqueezeNet(Model):
+    """The SqueezeNet DNN Class"""
     def __init__(self, params):
         super().__init__(params)
         net = torchvision.models.__dict__["squeezenet1_1"](pretrained=True)
@@ -118,6 +125,7 @@ class SqueezeNet(Model):
 
 
 def load_model(params):
+    """Load the model specified in params"""
     models = {
         "softmax": SoftMaxModel,
         "squeeze": SqueezeNet,

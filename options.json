@@ -1,7 +1,7 @@
 {
         "dataset": "mnist",
         "num_sims": 5,
-        "server_epochs": 3000,
+        "server_epochs": 5,
         "user_epochs": 1,
         "users": 10,
         "model_params": {
@@ -20,12 +20,12 @@
         "adversaries": {
                 "percent_adv": 0.5,
                 "type": "on off",
-                "from": 4,
-                "to": 8,
-                "toggle_times": [100, 100],
-                "delay": null
+                "from": 5,
+                "to": 0,
+                "toggle_times": [500, 150],
+                "delay": 1000
         },
-        "class_shards": [[0, 9],[1, 8],[2, 7],[3, 6],[4, 5],[5, 7],[6, 2],[7, 5],[8, 9],[9, 4]],
+        "class_shards": null,
         "classes_per_user": 2,
         "verbosity": 1,
         "result_file": "./results.pt"

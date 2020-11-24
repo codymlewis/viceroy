@@ -1,3 +1,9 @@
+"""
+Module for dataset classes and a function to load them
+
+Author: Cody Lewis
+"""
+
 from math import floor
 from abc import abstractmethod
 
@@ -13,6 +19,7 @@ import errors
 
 
 class DatasetWrapper(Dataset):
+    """Wrapper class for torch datasets to allow for easy non-iid splitting"""
     def __init__(self):
         self.targets = torch.tensor([])
         self.y_dim = 0
@@ -25,24 +32,28 @@ class DatasetWrapper(Dataset):
         pass
 
     def get_dims(self):
+        """Get the x and y dimensions of the dataset"""
         if len(self) < 1:
             return (0, 0)
         x, _ = self[0]
         return (x.shape[0], self.y_dim)
 
     def get_idx(self, classes):
+        """Get the ids of data belong to the specified classes"""
         return torch.arange(len(self.targets))[
             sum([(self.targets == i).long() for i in classes]).bool()
         ]
 
     def assign_to_classes(self, classes):
+        """Leave only data belonging to the classes within this set"""
         idx = self.get_idx(classes)
         self.data = self.data[idx]
         self.targets = self.targets[idx]
 
 
 class MNIST(DatasetWrapper):
-    def __init__(self, ds_path, train=True, download=False, classes=[]):
+    """The MNIST dataset in torch readable form"""
+    def __init__(self, ds_path, train=True, download=False, classes=None):
         super().__init__()
         ds = torchvision.datasets.MNIST(
             ds_path,
@@ -60,7 +71,8 @@ class MNIST(DatasetWrapper):
 
 
 class FashionMNIST(DatasetWrapper):
-    def __init__(self, ds_path, train=True, download=False, classes=[]):
+    """The Fashion MNIST dataset in torch readable form"""
+    def __init__(self, ds_path, train=True, download=False, classes=None):
         super().__init__()
         ds = torchvision.datasets.MNIST(
             ds_path,
@@ -78,7 +90,9 @@ class FashionMNIST(DatasetWrapper):
 
 
 class KDD99(DatasetWrapper):
-    def __init__(self, ds_path, train=True, download=False, classes=[]):
+    """The KDD Cup99 dataset in torch readable form"""
+    def __init__(self, ds_path, train=True, download=False, classes=None):
+        super().__init__()
         self.data = torch.tensor([])
         self.targets = torch.tensor([])
         df = pd.read_csv(
@@ -107,7 +121,9 @@ class KDD99(DatasetWrapper):
 
 
 class Amazon(DatasetWrapper):
-    def __init__(self, ds_path, train=True, download=False, classes=[]):
+    """The Amazon dataset in torch readable form"""
+    def __init__(self, ds_path, train=True, download=False, classes=None):
+        super().__init__()
         df = pd.read_csv(
             f"{ds_path}/{'train' if train else 'test'}/amazon.data",
             header=None
@@ -124,7 +140,9 @@ class Amazon(DatasetWrapper):
 
 
 class VGGFace(DatasetWrapper):
-    def __init__(self, ds_path, train=True, download=False, classes=[]):
+    """The VGGFace dataset in torch readable form"""
+    def __init__(self, ds_path, train=True, download=False, classes=None):
+        super().__init__()
         self.ds_path = f"{ds_path}/data"
         self.data_paths = []
         self.targets = []
@@ -168,14 +186,15 @@ class VGGFace(DatasetWrapper):
         return (X, self.targets[idx].long())
 
 
-def load_data(options, train=True, shuffle=True, classes=[]):
+def load_data(options, train=True, shuffle=True, classes=None):
     """
     Load the specified dataset in a form suitable for the model
 
     Keyword arguments:
     options -- options for the simulation
     train -- load the training dataset if true otherwise load the validation
-    classes -- use only the classes in list, use all classes if empty list
+    classes -- use only the classes in list, use all classes if empty list or
+    None
     """
     datasets = {
         "mnist": MNIST,
