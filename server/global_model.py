@@ -16,12 +16,9 @@ class GlobalModel:
         self.params = options.model_params
         self.params['num_in'] = num_in
         self.params['num_out'] = num_out
-        self.net = load_model(self.params).to(self.params['device'])
+        self.net = load_model(self.params)
         self.histories = dict()
-        self.fit_fun = {
-            "federated averaging": fed_avg,
-            "foolsgold": foolsgold
-        }[options.fit_fun]
+        self.fit_fun = load_fit_fun(options.fit_fun)
 
     def fit(self, grads, params):
         """Fit the model to some client gradients"""
@@ -36,17 +33,32 @@ class GlobalModel:
         return self.net.get_params()
 
 
-def fed_avg(net, grads, params):
+def load_fit_fun(fn_name):
+    """Load the class of the specified adversary"""
+    fit_funs = {
+        "federated averaging": fed_avg,
+        "foolsgold": foolsgold
+    }
+    if (chosen_fit_fun := fit_funs.get(fn_name)) is None:
+        raise utils.errors.MisconfigurationError(
+            f"Fitness function '{fn_name}' does not exist, " +
+            f"possible options: {set(fit_funs.keys())}"
+        )
+    return chosen_fit_fun
+
+
+def fed_avg(net, grads, _params):
     """Perform federated averaging across the client gradients"""
-    num_clients = len(grads)
-    total_dc = sum([grads[i]["data_count"] for i in range(num_clients)])
-    for k, p in enumerate(net.net.parameters()):
+    with torch.no_grad():
+        num_clients = len(grads)
+        total_dc = sum([grads[i]["data_count"] for i in range(num_clients)])
+        alpha = torch.tensor([0 for _ in range(num_clients)], dtype=torch.float32)
         for i in range(num_clients):
-            with torch.no_grad():
-                p.data.add_(
-                    (grads[i]["data_count"] / total_dc) *
-                    grads[i]["params"][k]
-                )
+            alpha[i] = grads[i]["data_count"] / total_dc
+            if net.net is not None:
+                for k, p in enumerate(net.net.parameters()):
+                    p.data.add_(alpha[i] * grads[i]["params"][k])
+        return alpha
 
 
 def find_feature_importance(net):
@@ -97,10 +109,14 @@ def foolsgold(net, grads, params):
             torch.log(alpha[ids] / (1 - alpha[ids])) + 0.5)
         alpha[alpha > 1] = 1
         alpha[alpha < 0] = 0
-        alpha_sum = alpha.sum()
-        for k, p in enumerate(net.net.parameters()):
-          for i in range(num_clients):
-            p.data.add_(
-                (alpha[i] / alpha_sum) *
-                grads[i]['params'][k]
-            )
+        # alpha_sum = alpha.sum()
+        alpha = alpha / alpha.sum()
+        if net.net is not None:
+            for k, p in enumerate(net.net.parameters()):
+              for i in range(num_clients):
+                p.data.add_(
+                    # (alpha[i] / alpha_sum) *
+                    alpha[i] *
+                    grads[i]['params'][k]
+                )
+        return alpha

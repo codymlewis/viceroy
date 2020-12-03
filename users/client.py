@@ -13,9 +13,9 @@ class Client:
     def __init__(self, options, classes):
         self.data = load_data(options, train=True, classes=classes)
         params = options.model_params
-        params['num_in'] = self.data['x_dim']
-        params['num_out'] = self.data['y_dim']
-        self.net = load_model(params).to(params['device'])
+        # params['num_in'] = self.data['x_dim']
+        # params['num_out'] = self.data['y_dim']
+        self.net = load_model(params)
         self.options = options
 
     def fit(self, verbose=False):

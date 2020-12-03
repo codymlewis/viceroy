@@ -29,12 +29,16 @@ class Server:
         self.confusion_matrices = torch.tensor([], dtype=int)
         self.criterion = nn.CrossEntropyLoss()
 
-    def fit(self, dataloader, e, epochs):
+    def fit(self, dataloader, e, epochs, syb_con=None):
         start = time.time()
         grads = []
+        net_params = self.net.get_params()
         for c in self.clients:
-            c.net.copy_params(self.net.get_params())
+            c.net.copy_params(net_params)
             grads.append(c.fit()[1])
+        # Have a sybil controller intercept and copy the gradients
+        if syb_con is not None:
+            syb_con.intercept(net_params, grads)
         self.net.fit(grads, self.options.params)
         loss, confusion_matrix = utils.gen_confusion_matrix(
             self.net,
@@ -49,12 +53,12 @@ class Server:
         stats = utils.gen_conf_stats(confusion_matrix, self.options)
         if self.options.verbosity > 0:
             print(
-                f"[ E: {e + 1}/{epochs}, " +
-                f"L: {loss:.6f}, " +
-                f"Acc: {stats['accuracy']:.6f}, " +
-                f"MCC: {stats['MCC']:.6f}, " +
-                f"ASR: {stats['attack_success']:.6f}, " +
-                f"T: {time.time() - start:.6f}s ]",
+                f"[ E: {e + 1:=}/{epochs}, " +
+                f"L: {loss: =7.5f}, " +
+                f"Acc: {stats['accuracy']: =7.5f}, " +
+                f"MCC: {stats['MCC']: =7.5f}, " +
+                f"ASR: {stats['attack_success']: =7.5f}, " +
+                f"T: {time.time() - start: =7.5f}s ]",
                 end="\r" if self.options.verbosity < 2 else "\n"
             )
         del grads

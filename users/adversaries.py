@@ -60,11 +60,26 @@ class OnOff(Client):
         return super().fit(verbose=verbose)
 
 
-def load_adversary(adversary_name):
+class OptimizedOnOff(Client):
+    def __init__(self, options, classes, controller):
+        super().__init__(options, classes)
+        self.shadow_data = load_data(options, [options.adversaries['from']])
+        self.shadow_data['dataloader'].dataset.targets[:] = \
+            options.adversaries['to']
+        controller.add_sybil(self)
+
+    def switch_mode(self):
+        temp = self.data
+        self.data = self.shadow_data
+        self.shadow_data = temp
+
+
+def load_adversary(adversary_name, controller):
     """Load the class of the specified adversary"""
     adversaries = {
         "label flip": Flipper,
         "on off": OnOff,
+        "optimized on off": lambda o, c: OptimizedOnOff(o, c, controller)
     }
     if (chosen_adversary := adversaries.get(adversary_name)) is None:
         raise utils.errors.MisconfigurationError(

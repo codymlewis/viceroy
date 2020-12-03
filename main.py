@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """
 Entry-point to run the program
@@ -12,9 +13,10 @@ import torch
 
 from users.adversaries import load_adversary
 from users.client import Client
-import utils.errors
 from server import Server
+from server.adv_controller import Controller
 import utils
+import utils.errors
 from utils.datasets import load_data
 
 
@@ -53,6 +55,8 @@ def run(program_flow, current, run_data):
         return run_data
     except utils.errors.MisconfigurationError as e:
         print(f"Miconfiguratation Error: {e}")
+        run_data['quit'] = True
+        return run_data
     except KeyboardInterrupt:
         print()
         decision = input('Are you sure you want to quit? ')
@@ -86,7 +90,17 @@ def system_setup(run_data):
         train=False,
         shuffle=False,
     )
+    run_data['options'].model_params['num_in'] = max(
+        run_data["train_data"]['x_dim'],
+        run_data["val_data"]['x_dim']
+    )
+    run_data['options'].model_params['num_out'] = max(
+        run_data["train_data"]['y_dim'],
+        run_data["val_data"]['y_dim']
+    )
     run_data['sim_number'] = 0
+    if run_data['options'].adversaries['type'].find("optimized") >= 0:
+        run_data['sybil_controller'] = Controller(run_data['options'])
     return run_data
 
 
@@ -95,7 +109,10 @@ def setup_users(run_data):
     run_data["user_classes"] = [
         Client if i <= run_data["options"].users * (
             1 - run_data["options"].adversaries['percent_adv'])
-        else load_adversary(run_data["options"].adversaries['type'])
+        else load_adversary(
+            run_data["options"].adversaries['type'],
+            run_data.get('sybil_controller')
+        )
         for i in range(1, run_data["options"].users + 1)
     ]
     if run_data["options"].class_shards:
@@ -121,14 +138,8 @@ def run_simulations(run_data):
         print(f"Simulation {i + 1}/{run_data['options'].num_sims}")
         if not run_data.get('sim_setup'):
             run_data["server"] = Server(
-                max(
-                    run_data["train_data"]['x_dim'],
-                    run_data["val_data"]['x_dim']
-                ),
-                max(
-                    run_data["train_data"]['y_dim'],
-                    run_data["val_data"]['y_dim']
-                ),
+                run_data['options'].model_params['num_in'],
+                run_data['options'].model_params['num_out'],
                 run_data["options"]
             )
             run_data["server"].add_clients(
@@ -147,21 +158,20 @@ def run_simulations(run_data):
             run_data["server"].fit(
                 run_data["val_data"]['dataloader'],
                 run_data['epoch'],
-                run_data["options"].server_epochs
+                run_data["options"].server_epochs,
+                run_data.get('sybil_controller')
             )
         confusion_matrices = run_data['server'].get_conf_matrices()
-        if run_data["options"].verbosity > 0:
-            print()
         run_data["sim_confusion_matrices"] = torch.cat(
             (
                 run_data["sim_confusion_matrices"],
                 confusion_matrices.unsqueeze(dim=0)
             )
         )
-        print()
         run_data['sim_setup'] = False
         run_data['sim_number'] += 1
         if run_data["options"].verbosity > 0:
+            print()
             print("Done training.")
         criterion = torch.nn.CrossEntropyLoss()
         loss, conf_mat = utils.gen_confusion_matrix(
@@ -181,14 +191,15 @@ def run_simulations(run_data):
         )
         stats_val = utils.gen_conf_stats(conf_mat, run_data["options"])
         print(f"Loss: t: {loss}, v: {loss_val}")
-        print(f"Accuracy: t: {stats['accuracy'] * 100}%, ", end="")
-        print(f"v: {stats_val['accuracy'] * 100}%")
+        print(f"Accuracy: t: {stats['accuracy']:%}, ", end="")
+        print(f"v: {stats_val['accuracy']:%}")
         print(f"MCC: t: {stats['MCC']}, v: {stats_val['MCC']}")
         print(
-            f"Attack success rate: t: {stats['attack_success'] * 100}%, ",
+            f"Attack success rate: t: {stats['attack_success']:%}, ",
             end=""
         )
-        print(f"v: {stats_val['attack_success'] * 100}%")
+        print(f"v: {stats_val['attack_success']:%}")
+        print()
     return run_data
 
 

@@ -136,4 +136,4 @@ def load_model(params):
             f"Model '{model_name}' does not exist, " +
             f"possible options: {set(models.keys())}"
         )
-    return chosen_model(params)
+    return chosen_model(params).to(params['device'])

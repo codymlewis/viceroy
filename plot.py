@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+Generate the plots from a series of simulations
+
+Author: Cody Lewis
+"""
 
 import math
 from itertools import cycle
@@ -13,11 +18,15 @@ import torch
 
 import utils
 
+
 def gen_stats(options):
+    """Load the confusion matrices and calculate statistics, return stats"""
     sim_confusion_matrices = torch.load(options.result_file)
     return utils.gen_experiment_stats(sim_confusion_matrices, options)
 
+
 def save_plot(options, stats, filter_fn, img_name):
+    """Create and save plots as img_name based on the stats and options"""
     y_min, y_max = 0, 0
     for k, v in stats.items():
         if filter_fn(k):
