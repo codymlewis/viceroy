@@ -46,8 +46,8 @@ def gen_conf_stats(confusion_matrix, options):
     p = torch.tensor([0 for _ in confusion_matrix])
     for x, row in enumerate(confusion_matrix):
         for y, cell in enumerate(row):
-            # .item()?
-            cell = int(cell)
+            # cell = int(cell)
+            cell.item()
             t[y] += cell
             p[x] += cell
             if x == y:

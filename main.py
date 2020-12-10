@@ -8,6 +8,7 @@ Author: Cody Lewis
 """
 
 import random
+import pickle
 
 import torch
 
@@ -59,9 +60,13 @@ def run(program_flow, current, run_data):
         return run_data
     except KeyboardInterrupt:
         print()
-        decision = input('Are you sure you want to quit? ')
-        if decision.lower().find('y') >= 0:
+        decision = input('Are you sure you want to quit (y/s/n)? ')
+        if (dl := decision.lower()).find('y') >= 0:
             run_data['quit'] = True
+            return run_data
+        elif dl.find('s') >= 0:
+            run_data['quit'] = True
+            run_data['save'] = True
             return run_data
         return run(program_flow, current, data)
 
@@ -84,11 +89,13 @@ def system_setup(run_data):
         run_data["options"],
         train=True,
         shuffle=False,
+        backdoor=run_data['options'].adversaries['type'].find('backdoor') >= 0
     )
     run_data["val_data"] = load_data(
         run_data["options"],
         train=False,
         shuffle=False,
+        backdoor=run_data['options'].adversaries['type'].find('backdoor') >= 0
     )
     run_data['options'].model_params['num_in'] = max(
         run_data["train_data"]['x_dim'],
@@ -99,8 +106,9 @@ def system_setup(run_data):
         run_data["val_data"]['y_dim']
     )
     run_data['sim_number'] = 0
-    if run_data['options'].adversaries['type'].find("optimized") >= 0:
+    if run_data['options'].adversaries['optimized_look_ahead'] > 0:
         run_data['sybil_controller'] = Controller(run_data['options'])
+        run_data['controller_toggle'] = []
     return run_data
 
 
@@ -110,7 +118,7 @@ def setup_users(run_data):
         Client if i <= run_data["options"].users * (
             1 - run_data["options"].adversaries['percent_adv'])
         else load_adversary(
-            run_data["options"].adversaries['type'],
+            run_data["options"],
             run_data.get('sybil_controller')
         )
         for i in range(1, run_data["options"].users + 1)
@@ -168,6 +176,9 @@ def run_simulations(run_data):
                 confusion_matrices.unsqueeze(dim=0)
             )
         )
+        if (con := run_data.get('sybil_controller')) is not None:
+            run_data['controller_toggle'].append(con.toggle_record.copy())
+            con.setup()
         run_data['sim_setup'] = False
         run_data['sim_number'] += 1
         if run_data["options"].verbosity > 0:
@@ -212,6 +223,11 @@ def write_results(run_data):
         run_data["options"].result_file,
         run_data["sim_confusion_matrices"]
     )
+    if (ct := run_data.get('controller_toggle')) is not None:
+        tr_fn = 'toggle_record.pkl'
+        print(f"Writing toggle record to {tr_fn}...")
+        with open(tr_fn, 'wb') as f:
+            pickle.dump(torch.tensor(ct, dtype=float), f)
     if run_data["options"].verbosity > 0:
         print("Done.")
     return run_data
@@ -228,5 +244,9 @@ if __name__ == '__main__':
     for k in program_flow.keys():
         data = run(program_flow, k, data)
         if data['quit']:
+            if data.get('save'):
+                run(program_flow, 'write_results', data)
             print("bye.")
             break
+    del data
+    # sys.exit(0)

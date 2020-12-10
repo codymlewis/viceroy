@@ -1,7 +1,7 @@
 {
         "dataset": "mnist",
-        "num_sims": 5,
-        "server_epochs": 300,
+        "num_sims": 1,
+        "server_epochs": 30,
         "user_epochs": 1,
         "users": 10,
         "model_params": {
@@ -12,18 +12,19 @@
                 "learning_rate": [0.01],
                 "lr_changes": []
         },
-        "fit_fun": "federated averaging",
+        "fit_fun": "foolsgold",
         "params": {
                 "kappa": 2,
                 "importance": false
         },
         "adversaries": {
                 "percent_adv": 0.5,
-                "type": "optimized on off",
+                "type": "backdoor",
                 "from": 5,
                 "to": 0,
-                "toggle_times": [50, 30],
-                "delay": 10
+                "toggle_times": [300, 300],
+                "delay": 5,
+                "optimized_look_ahead": 5
         },
         "class_shards": [[0, 9],[1, 8],[2, 7],[3, 6],[4, 5],[5, 7],[6, 2],[7, 5],[8, 9],[9, 4]],
         "classes_per_user": 2,

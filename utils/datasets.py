@@ -4,7 +4,7 @@ Module for dataset classes and a function to load them
 Author: Cody Lewis
 """
 
-from math import floor
+from math import floor, sqrt
 from abc import abstractmethod
 
 import numpy as np
@@ -53,7 +53,8 @@ class DatasetWrapper(Dataset):
 
 class MNIST(DatasetWrapper):
     """The MNIST dataset in torch readable form"""
-    def __init__(self, ds_path, train=True, download=False, classes=None):
+    def __init__(self, ds_path, train=True, download=False, classes=None,
+                 backdoor=False):
         super().__init__()
         ds = torchvision.datasets.MNIST(
             ds_path,
@@ -65,6 +66,12 @@ class MNIST(DatasetWrapper):
         self.y_dim = len(self.targets.unique())
         if classes:
             self.assign_to_classes(classes)
+        if backdoor:
+            n = int(sqrt(len(self.data[0])))
+            self.max_x = self.data.max().item()
+            for d in self.data:
+                for i in range(n // 5):
+                    d[i*n:i*n + 5] = self.max_x
 
     def __getitem__(self, i):
         return (self.data[i], self.targets[i])
@@ -72,9 +79,10 @@ class MNIST(DatasetWrapper):
 
 class FashionMNIST(DatasetWrapper):
     """The Fashion MNIST dataset in torch readable form"""
-    def __init__(self, ds_path, train=True, download=False, classes=None):
+    def __init__(self, ds_path, train=True, download=False, classes=None,
+                 backdoor=False):
         super().__init__()
-        ds = torchvision.datasets.MNIST(
+        ds = torchvision.datasets.FashionMNIST(
             ds_path,
             train=train,
             download=download
@@ -84,6 +92,12 @@ class FashionMNIST(DatasetWrapper):
         self.y_dim = len(self.targets.unique())
         if classes:
             self.assign_to_classes(classes)
+        if backdoor:
+            n = int(sqrt(len(self.data[0])))
+            self.max_x = self.data.max().item()
+            for d in self.data:
+                for i in range(n // 5):
+                    d[i*n:i*n + 5] = self.max_x
 
     def __getitem__(self, i):
         return (self.data[i], self.targets[i])
@@ -91,7 +105,8 @@ class FashionMNIST(DatasetWrapper):
 
 class KDD99(DatasetWrapper):
     """The KDD Cup99 dataset in torch readable form"""
-    def __init__(self, ds_path, train=True, download=False, classes=None):
+    def __init__(self, ds_path, train=True, download=False, classes=None,
+                 backdoor=False):
         super().__init__()
         self.data = torch.tensor([])
         self.targets = torch.tensor([])
@@ -107,7 +122,11 @@ class KDD99(DatasetWrapper):
         while read_amount > 0 and (nl := nl + read_amount) <= marker:
             line = df.read(read_amount)
             line = torch.from_numpy(line.to_numpy(np.dtype('float32')))
-            self.data = torch.cat((self.data, line[:, 1:-1]))
+            data = line[:, 1:-1]
+            if backdoor:
+                data[:, 0] = 5
+                data[:, 4] = 360
+            self.data = torch.cat((self.data, data))
             self.targets = torch.cat((self.targets, line[:, -1]))
             if nl == marker:
                 marker = data_len
@@ -122,7 +141,8 @@ class KDD99(DatasetWrapper):
 
 class Amazon(DatasetWrapper):
     """The Amazon dataset in torch readable form"""
-    def __init__(self, ds_path, train=True, download=False, classes=None):
+    def __init__(self, ds_path, train=True, download=False, classes=None,
+                 backdoor=False):
         super().__init__()
         df = pd.read_csv(
             f"{ds_path}/{'train' if train else 'test'}/amazon.data",
@@ -134,6 +154,8 @@ class Amazon(DatasetWrapper):
         self.y_dim = len(self.targets.unique())
         if classes:
             self.assign_to_classes(classes)
+        if backdoor:
+            self.data[:, 0] = 16
 
     def __getitem__(self, i):
         return (self.data[i], self.targets[i].long())
@@ -141,7 +163,8 @@ class Amazon(DatasetWrapper):
 
 class VGGFace(DatasetWrapper):
     """The VGGFace dataset in torch readable form"""
-    def __init__(self, ds_path, train=True, download=False, classes=None):
+    def __init__(self, ds_path, train=True, download=False, classes=None,
+                 backdoor=False):
         super().__init__()
         self.ds_path = f"{ds_path}/data"
         self.data_paths = []
@@ -150,22 +173,25 @@ class VGGFace(DatasetWrapper):
             mean=[0.485, 0.456, 0.406],
             std=[0.229, 0.224, 0.225]
         )
+
+        def backdoor_fn(image):
+            image[:, 0:20, 0:20] = 0
+            image[1, 0:20, 0:20] = 1
+            return image
         self.train = train
+        composition = [transforms.Resize(256)]
         if train:
-            self.transform = transforms.Compose([
-                transforms.Resize(256),
+            composition += [
                 transforms.RandomResizedCrop(224),
                 transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                normalize,
-            ])
+            ]
         else:
-            self.transform = transforms.Compose([
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                normalize,
-            ])
+            composition += [transforms.CenterCrop(224)]
+        composition.append(transforms.ToTensor())
+        if backdoor:
+            composition.append(backdoor_fn)
+        composition.append(normalize)
+        self.transform = transforms.Compose(composition)
         file_info = pd.read_csv(f"{ds_path}/top10_files.csv")
         unique_classes = set()
         for _, r in file_info[file_info['train_flag'] == int(not train)].iterrows():
@@ -186,7 +212,7 @@ class VGGFace(DatasetWrapper):
         return (X, self.targets[idx].long())
 
 
-def load_data(options, train=True, shuffle=True, classes=None):
+def load_data(options, train=True, shuffle=True, classes=None, backdoor=False):
     """
     Load the specified dataset in a form suitable for the model
 
@@ -212,7 +238,8 @@ def load_data(options, train=True, shuffle=True, classes=None):
         f"./data/{options.dataset}",
         train=train,
         download=True,
-        classes=classes
+        classes=classes,
+        backdoor=backdoor
     )
     x_dim, y_dim = data.get_dims()
     return {
