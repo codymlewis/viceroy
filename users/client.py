@@ -16,10 +16,11 @@ class Client:
         self.net = load_model(params)
         self.options = options
 
-    def fit(self, verbose=False):
+    def fit(self, scaling=1, verbose=False):
         """Fit the client to its own copy of data"""
         return self.net.fit(
             self.data['dataloader'],
             self.options.user_epochs,
+            scaling=scaling,
             verbose=verbose
         )

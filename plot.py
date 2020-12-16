@@ -23,6 +23,12 @@ import utils
 def gen_stats(options):
     """Load the confusion matrices and calculate statistics, return stats"""
     sim_confusion_matrices = torch.load(options.result_file)
+    if options.adversaries['type'].find('backdoor') >= 0:
+        stats = utils.gen_experiment_stats(sim_confusion_matrices, options)
+        scmb = torch.load(f"bd_{options.result_file}")
+        stats_bd = utils.gen_experiment_stats(scmb, options)
+        stats['attack_success'] = stats_bd['attack_success']
+        return stats
     return utils.gen_experiment_stats(sim_confusion_matrices, options)
 
 
@@ -37,45 +43,46 @@ def save_plot(options, stats, filter_fn, img_name):
     fig, ax = plt.subplots()
     ax.set(ylim=(y_min - 0.05, y_max + 0.05))
     if options.adversaries['percent_adv'] > 0:
-        if options.adversaries['optimized_look_ahead'] > 0:
+        nb_epochs = max(epochs).item()
+        if options.adversaries['optimized']:
             title = "{} Attack with Optimized Toggle".format(
                 options.adversaries['type']
             )
-            with open('toggle_record.pkl', 'rb') as f:
-                toggles_rec = pickle.load(f).mean(dim=0).round().long()
-            toggles = [toggles_rec[0].item()]
-            for i, val in enumerate(toggles_rec[1:]):
-                toggles.append((val - toggles_rec[i]).item())
-            toggles = iter(toggles)
+        elif options.adversaries['toggle_times'] is None:
+            title = f"{options.adversaries['type']} Attack"
         else:
+            tt = options.adversaries['toggle_times']
             title = "{} Attack with {} Epoch Toggle".format(
                 options.adversaries['type'],
-                options.adversaries['toggle_times']
+                tt if tt else 'No'
             )
-            toggles = cycle(options.adversaries['toggle_times'])
-        if options.adversaries['delay'] is not None:
-            i = options.adversaries['delay']
-            on = True
-            next(toggles)
-        else:
-            i = 0
-            on = False
-        nb_epochs = max(epochs)
-        while i < nb_epochs:
-            toggle = next(toggles)
-            if on:
-                rect_width = min(nb_epochs - i, toggle)
-                ax.add_patch(
-                    Rectangle(
-                        (i, y_min),
-                        rect_width,
-                        abs(y_max - y_min),
-                        color="red",
-                        alpha=0.2
-                    ),
-                )
-            i += toggle
-            on = not on
+            if tt:
+                toggles = cycle(tt)
+            else:
+                toggles = cycle([0, nb_epochs])
+            if options.adversaries['delay'] is not None:
+                i = options.adversaries['delay']
+                on = True
+                next(toggles)
+            else:
+                i = 0
+                on = False
+            for t in toggles:
+                if on:
+                    rect_width = min(nb_epochs - i, t)
+                    ax.add_patch(
+                        Rectangle(
+                            (i, y_min),
+                            rect_width,
+                            abs(y_max - y_min),
+                            color="red",
+                            alpha=0.2
+                        ),
+                    )
+                i += t
+                on = not on
+                if i >= nb_epochs:
+                    break
         title = "{:.1%} {}->{} {}".format(
             options.adversaries['percent_adv'],
             options.adversaries['from'],
@@ -102,15 +109,16 @@ if __name__ == '__main__':
     print("Calculating statistics and generating plots...")
     options = utils.load_options()
     stats = gen_stats(options)
-    img_name = "{}_{}_{:.1%}_{}_{}_{}".format(
+    img_name = "{}_{}_{:.1f}_{}_{}_{}{}".format(
         options.dataset,
         options.fit_fun,
-        options.adversaries['percent_adv'],
+        options.adversaries['percent_adv'] * 100,
         options.adversaries['type'],
-        'optimized' if options.adversaries['optimized_look_ahead'] > 0 else
-        f"{options.adversaries['toggle_times']}",
-        f"{d}_delay" if (d := options.adversaries['delay']) > 0
-        else 'no_delay'
+        'optimized' if options.adversaries['optimized'] else
+        f"{tt}" if (tt := options.adversaries['toggle_times']) else 'no_toggle',
+        f"{d}_delay" if (d := options.adversaries['delay']) is not None and d > 0
+        else 'no_delay',
+        "_scaled" if options.adversaries['scale_up'] else ''
     ).replace(' ', '_')
     match_acc = lambda k: re.match('accuracy_\d', k)
     save_plot(options, stats, lambda k: match_acc(k) is None, f"{img_name}.png")

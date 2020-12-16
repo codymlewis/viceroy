@@ -27,7 +27,7 @@ class Model(nn.Module):
     def forward(self, *x):
         pass
 
-    def fit(self, data, epochs=1, verbose=True):
+    def fit(self, data, epochs=1, scaling=1, verbose=True):
         """
         Fit the model for some epochs, return history of loss values and the
         gradients of the changed parameters
@@ -69,7 +69,7 @@ class Model(nn.Module):
         if verbose:
             print()
         return loss, {
-            "params": [-self.lr * p.grad for p in self.parameters()],
+            "params": [scaling * -self.lr * p.grad for p in self.parameters()],
             "data_count": data_count
         }
 

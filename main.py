@@ -71,6 +71,14 @@ def run(program_flow, current, run_data):
         return run(program_flow, current, data)
 
 
+def load_test_data(run_data, train, backdoor):
+    return load_data(
+        run_data["options"],
+        train=train,
+        shuffle=False,
+        backdoor=backdoor
+    )
+
 def system_setup(run_data):
     """Setup the system"""
     run_data["options"] = utils.load_options()
@@ -85,18 +93,12 @@ def system_setup(run_data):
             raise utils.errors.MisconfigurationError(
                 f"Device '{dev_name}' is not available on this machine"
             )
-    run_data["train_data"] = load_data(
-        run_data["options"],
-        train=True,
-        shuffle=False,
-        backdoor=run_data['options'].adversaries['type'].find('backdoor') >= 0
-    )
-    run_data["val_data"] = load_data(
-        run_data["options"],
-        train=False,
-        shuffle=False,
-        backdoor=run_data['options'].adversaries['type'].find('backdoor') >= 0
-    )
+    backdoor = run_data['options'].adversaries['type'].find('backdoor') >= 0
+    run_data["train_data"] = load_test_data(run_data, True, backdoor)
+    run_data["val_data"] = load_test_data(run_data, False, backdoor)
+    if backdoor:
+        run_data['train_data_no_bd'] = load_test_data(run_data, True, False)
+        run_data['val_data_no_bd'] = load_test_data(run_data, False, False)
     run_data['options'].model_params['num_in'] = max(
         run_data["train_data"]['x_dim'],
         run_data["val_data"]['x_dim']
@@ -106,7 +108,7 @@ def system_setup(run_data):
         run_data["val_data"]['y_dim']
     )
     run_data['sim_number'] = 0
-    if run_data['options'].adversaries['optimized_look_ahead'] > 0:
+    if run_data['options'].adversaries['optimized']:
         run_data['sybil_controller'] = Controller(run_data['options'])
         run_data['controller_toggle'] = []
     return run_data
@@ -142,6 +144,8 @@ def setup_users(run_data):
 def run_simulations(run_data):
     """Run the simulations"""
     run_data["sim_confusion_matrices"] = torch.tensor([], dtype=int)
+    if run_data['options'].adversaries['type'].find('backdoor') >= 0:
+        run_data["sim_confusion_matrices_bd"] = torch.tensor([], dtype=int)
     for i in range(run_data['sim_number'], run_data["options"].num_sims):
         print(f"Simulation {i + 1}/{run_data['options'].num_sims}")
         if not run_data.get('sim_setup'):
@@ -163,19 +167,35 @@ def run_simulations(run_data):
         print("Starting training...")
         for run_data['epoch'] in range(run_data['epoch'],
                 run_data['options'].server_epochs):
-            run_data["server"].fit(
-                run_data["val_data"]['dataloader'],
-                run_data['epoch'],
-                run_data["options"].server_epochs,
-                run_data.get('sybil_controller')
-            )
-        confusion_matrices = run_data['server'].get_conf_matrices()
+            if (vd := run_data.get('val_data_no_bd')) is not None:
+                run_data["server"].fit(
+                    vd['dataloader'],
+                    run_data['epoch'],
+                    run_data["options"].server_epochs,
+                    run_data["val_data"]['dataloader'],
+                    run_data.get('sybil_controller')
+                )
+            else:
+                run_data["server"].fit(
+                    run_data["val_data"]['dataloader'],
+                    run_data['epoch'],
+                    run_data["options"].server_epochs,
+                    syb_con=run_data.get('sybil_controller')
+                )
+        confusion_matrices, cm_bd = run_data['server'].get_conf_matrices()
         run_data["sim_confusion_matrices"] = torch.cat(
             (
                 run_data["sim_confusion_matrices"],
                 confusion_matrices.unsqueeze(dim=0)
             )
         )
+        if cm_bd is not None:
+            run_data["sim_confusion_matrices_bd"] = torch.cat(
+                (
+                    run_data["sim_confusion_matrices_bd"],
+                    cm_bd.unsqueeze(dim=0)
+                )
+            )
         if (con := run_data.get('sybil_controller')) is not None:
             run_data['controller_toggle'].append(con.toggle_record.copy())
             con.setup()
@@ -185,34 +205,52 @@ def run_simulations(run_data):
             print()
             print("Done training.")
         criterion = torch.nn.CrossEntropyLoss()
-        loss, conf_mat = utils.gen_confusion_matrix(
-            run_data["server"].net,
-            run_data["train_data"]['dataloader'],
+        loss, stats = gen_conf(
+            run_data,
             criterion,
-            run_data["server"].nb_classes,
-            run_data["options"]
+            "train_data"
         )
-        stats = utils.gen_conf_stats(conf_mat, run_data["options"])
-        loss_val, conf_mat = utils.gen_confusion_matrix(
-            run_data["server"].net,
-            run_data["val_data"]['dataloader'],
+        loss_val, stats_val = gen_conf(
+            run_data,
             criterion,
-            run_data["server"].nb_classes,
-            run_data["options"]
+            "val_data"
         )
-        stats_val = utils.gen_conf_stats(conf_mat, run_data["options"])
-        print(f"Loss: t: {loss}, v: {loss_val}")
-        print(f"Accuracy: t: {stats['accuracy']:%}, ", end="")
-        print(f"v: {stats_val['accuracy']:%}")
-        print(f"MCC: t: {stats['MCC']}, v: {stats_val['MCC']}")
-        print(
-            f"Attack success rate: t: {stats['attack_success']:%}, ",
-            end=""
-        )
-        print(f"v: {stats_val['attack_success']:%}")
-        print()
+        if run_data.get('train_data_no_bd') is not None:
+            loss_nb, stats_nb = gen_conf(
+                run_data,
+                criterion,
+                "train_data_no_bd"
+            )
+            loss_val_nb, stats_val_nb = gen_conf(
+                run_data,
+                criterion,
+                "val_data_no_bd"
+            )
+            print()
+            print("Normal Stats:")
+            print(get_printable_stats(loss_nb, loss_val_nb, stats_nb, stats_val_nb))
+            print("Backdoored Stats:")
+        print(get_printable_stats(loss, loss_val, stats, stats_val))
     return run_data
 
+def get_printable_stats(loss, loss_val, stats, stats_val):
+    return f"Loss: t: {loss}, v: {loss_val}\n" + \
+        f"Accuracy: t: {stats['accuracy']:%}, " + \
+        f"v: {stats_val['accuracy']:%}\n" + \
+        f"MCC: t: {stats['MCC']}, v: {stats_val['MCC']}\n" + \
+        f"Attack success rate: t: {stats['attack_success']:%}, " + \
+        f"v: {stats_val['attack_success']:%}\n"
+
+def gen_conf(run_data, criterion, dl_name):
+    loss, conf_mat = utils.gen_confusion_matrix(
+        run_data["server"].net,
+        run_data[dl_name]['dataloader'],
+        criterion,
+        run_data["server"].nb_classes,
+        run_data["options"]
+    )
+    stats = utils.gen_conf_stats(conf_mat, run_data["options"])
+    return loss, stats
 
 def write_results(run_data):
     """Write all of the recorded results from the experiments"""
@@ -223,9 +261,18 @@ def write_results(run_data):
         run_data["options"].result_file,
         run_data["sim_confusion_matrices"]
     )
+    if (scmb := run_data.get('sim_confusion_matrices_bd')) is not None:
+        utils.write_results(
+            f"bd_{run_data['options'].result_file}",
+            scmb
+        )
     if (ct := run_data.get('controller_toggle')) is not None:
         tr_fn = 'toggle_record.pkl'
         print(f"Writing toggle record to {tr_fn}...")
+        max_len = max([len(a) for a in ct])
+        for a in ct:
+            while len(a) < max_len:
+                a.append(run_data['options'].server_epochs)
         with open(tr_fn, 'wb') as f:
             pickle.dump(torch.tensor(ct, dtype=float), f)
     if run_data["options"].verbosity > 0:

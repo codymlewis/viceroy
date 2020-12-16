@@ -6,5 +6,6 @@ tags
 data
 data/*
 results.pt
+bd_results.pt
 toggle_record.pkl
 *.png

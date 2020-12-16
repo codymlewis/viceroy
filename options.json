@@ -1,13 +1,13 @@
 {
-        "dataset": "mnist",
-        "num_sims": 1,
-        "server_epochs": 30,
+        "dataset": "vggface",
+        "num_sims": 5,
+        "server_epochs": 3000,
         "user_epochs": 1,
         "users": 10,
         "model_params": {
-                "architecture": "softmax",
+                "architecture": "squeeze",
                 "device": "cuda:0",
-                "batch_size": 512,
+                "batch_size": 196,
                 "params_mul": 10,
                 "learning_rate": [0.01],
                 "lr_changes": []
@@ -19,15 +19,18 @@
         },
         "adversaries": {
                 "percent_adv": 0.5,
-                "type": "backdoor",
+                "type": "label flip",
                 "from": 5,
                 "to": 0,
-                "toggle_times": [300, 300],
-                "delay": 5,
-                "optimized_look_ahead": 5
+                "scale_up": false,
+                "toggle_times": null,
+                "delay": null,
+                "beta": 0.1,
+                "gamma": 0.7,
+                "optimized": true
         },
         "class_shards": [[0, 9],[1, 8],[2, 7],[3, 6],[4, 5],[5, 7],[6, 2],[7, 5],[8, 9],[9, 4]],
         "classes_per_user": 2,
         "verbosity": 1,
-        "result_file": "./results.pt"
+        "result_file": "results.pt"
 }
