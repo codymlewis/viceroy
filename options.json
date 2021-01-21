@@ -1,13 +1,13 @@
 {
-        "dataset": "vggface",
+        "dataset": "mnist",
         "num_sims": 5,
         "server_epochs": 3000,
         "user_epochs": 1,
         "users": 10,
         "model_params": {
-                "architecture": "squeeze",
+                "architecture": "softmax",
                 "device": "cuda:0",
-                "batch_size": 196,
+                "batch_size": 512,
                 "params_mul": 10,
                 "learning_rate": [0.01],
                 "lr_changes": []
@@ -15,7 +15,8 @@
         "fit_fun": "foolsgold",
         "params": {
                 "kappa": 2,
-                "importance": false
+                "importance": false,
+                "reputation": true
         },
         "adversaries": {
                 "percent_adv": 0.5,
@@ -24,7 +25,7 @@
                 "to": 0,
                 "scale_up": false,
                 "toggle_times": null,
-                "delay": null,
+                "delay": 1000,
                 "beta": 0.1,
                 "gamma": 0.7,
                 "optimized": true

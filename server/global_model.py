@@ -79,12 +79,16 @@ def foolsgold(net, grads, params):
         )
         v = torch.tensor([0 for _ in range(num_clients)], dtype=torch.float32)
         alpha = torch.tensor([0 for _ in range(num_clients)], dtype=torch.float32)
+        beta = torch.tensor([1 for _ in range(num_clients)], dtype=torch.float32)
         if len(net.histories) < num_clients:
             while len(net.histories) < num_clients:
                 net.histories[len(net.histories)] = flat_grads[len(net.histories)]
         else:
             for i in range(num_clients):
+                if params['reputation']:
+                    beta[i] = torch.cosine_similarity(net.histories[i], flat_grads[i], dim=0)
                 net.histories[i] += flat_grads[i]
+        beta = 2 * beta - 1
         if params['importance']:
             feature_importance = find_feature_importance(net)
         else:
@@ -109,14 +113,13 @@ def foolsgold(net, grads, params):
             torch.log(alpha[ids] / (1 - alpha[ids])) + 0.5)
         alpha[alpha > 1] = 1
         alpha[alpha < 0] = 0
-        # alpha_sum = alpha.sum()
         alpha = alpha / alpha.sum()
         if net.net is not None:
             for k, p in enumerate(net.net.parameters()):
               for i in range(num_clients):
                 p.data.add_(
-                    # (alpha[i] / alpha_sum) *
                     alpha[i] *
+                    beta[i] *
                     grads[i]['params'][k]
                 )
         return alpha
