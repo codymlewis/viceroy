@@ -10,7 +10,6 @@ Author: Cody Lewis
 import math
 from itertools import cycle
 import re
-import pickle
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -96,7 +95,7 @@ def save_plot(options, stats, filter_fn, img_name):
     title = f"Performance of {options.fit_fun} under {title}"
     for k in stats.keys():
         if filter_fn(k):
-            ax.plot(epochs, stats[k].mean(dim=0), label=k.replace('_', ' '))
+            ax.plot(epochs, stats[k], label=k.replace('_', ' '))
     plt.xlabel("Epochs")
     plt.ylabel("Rate")
     plt.title(title.title(), fontdict={'fontsize': 7})

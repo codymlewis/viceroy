@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Entry-point to run the program
+Entry-point to run the program.
 
 Author: Cody Lewis
 """
@@ -19,10 +19,11 @@ from server.adv_controller import Controller
 import utils
 import utils.errors
 from utils.datasets import load_data
+import toggle_stats
 
 
 def index_match(arr):
-    """Check whether the index within an array is equal to the value"""
+    """Check whether the index within an array is equal to the value."""
     for i, a in enumerate(arr):
         if i == a:
             return True
@@ -30,7 +31,7 @@ def index_match(arr):
 
 
 def find_shards(num_users, num_classes, classes_per_user):
-    """Find data class shards according to the parameters"""
+    """Find data class shards according to the parameters."""
     end_halves = [list(range(num_classes))
                   for _ in range(classes_per_user - 1)]
     if num_classes / classes_per_user < num_users:
@@ -50,7 +51,7 @@ def find_shards(num_users, num_classes, classes_per_user):
 
 
 def run(program_flow, current, run_data):
-    """Run a part of the program"""
+    """Run a part of the program."""
     try:
         program_flow[current](run_data)
         return run_data
@@ -79,8 +80,9 @@ def load_test_data(run_data, train, backdoor):
         backdoor=backdoor
     )
 
+
 def system_setup(run_data):
-    """Setup the system"""
+    """Setup the system."""
     run_data["options"] = utils.load_options()
     if run_data["options"].verbosity > 0:
         print("Options set as:")
@@ -115,7 +117,7 @@ def system_setup(run_data):
 
 
 def setup_users(run_data):
-    """Setup the users/clients for the system"""
+    """Setup the users/clients for the system."""
     run_data["user_classes"] = [
         Client if i <= run_data["options"].users * (
             1 - run_data["options"].adversaries['percent_adv'])
@@ -142,10 +144,7 @@ def setup_users(run_data):
 
 
 def run_simulations(run_data):
-    """Run the simulations"""
-    run_data["sim_confusion_matrices"] = torch.tensor([], dtype=int)
-    if run_data['options'].adversaries['type'].find('backdoor') >= 0:
-        run_data["sim_confusion_matrices_bd"] = torch.tensor([], dtype=int)
+    """Run the simulations."""
     for i in range(run_data['sim_number'], run_data["options"].num_sims):
         print(f"Simulation {i + 1}/{run_data['options'].num_sims}")
         if not run_data.get('sim_setup'):
@@ -183,19 +182,15 @@ def run_simulations(run_data):
                     syb_con=run_data.get('sybil_controller')
                 )
         confusion_matrices, cm_bd = run_data['server'].get_conf_matrices()
-        run_data["sim_confusion_matrices"] = torch.cat(
-            (
-                run_data["sim_confusion_matrices"],
-                confusion_matrices.unsqueeze(dim=0)
-            )
-        )
+        if (scm := run_data.get("sim_confusion_matrices")) is not None:
+            scm += confusion_matrices
+        else:
+            run_data["sim_confusion_matrices"] = confusion_matrices
         if cm_bd is not None:
-            run_data["sim_confusion_matrices_bd"] = torch.cat(
-                (
-                    run_data["sim_confusion_matrices_bd"],
-                    cm_bd.unsqueeze(dim=0)
-                )
-            )
+            if (scmb := run_data.get("sim_confusion_matrices_bd")) is not None:
+                scmb += cm_bd
+            else:
+                run_data["sim_confusion_matrices_bd"] = cm_bd
         if (con := run_data.get('sybil_controller')) is not None:
             run_data['controller_toggle'].append(con.toggle_record.copy())
             con.setup()
@@ -233,6 +228,7 @@ def run_simulations(run_data):
         print(get_printable_stats(loss, loss_val, stats, stats_val))
     return run_data
 
+
 def get_printable_stats(loss, loss_val, stats, stats_val):
     return f"Loss: t: {loss}, v: {loss_val}\n" + \
         f"Accuracy: t: {stats['accuracy']:%}, " + \
@@ -240,6 +236,7 @@ def get_printable_stats(loss, loss_val, stats, stats_val):
         f"MCC: t: {stats['MCC']}, v: {stats_val['MCC']}\n" + \
         f"Attack success rate: t: {stats['attack_success']:%}, " + \
         f"v: {stats_val['attack_success']:%}\n"
+
 
 def gen_conf(run_data, criterion, dl_name):
     loss, conf_mat = utils.gen_confusion_matrix(
@@ -259,22 +256,27 @@ def write_results(run_data):
         print(f"Writing confusion matrices to {run_data['options'].result_file}...")
     utils.write_results(
         run_data["options"].result_file,
-        run_data["sim_confusion_matrices"]
+        torch.round(
+            run_data["sim_confusion_matrices"] / run_data["options"].num_sims
+        ).long()
     )
     if (scmb := run_data.get('sim_confusion_matrices_bd')) is not None:
         utils.write_results(
             f"bd_{run_data['options'].result_file}",
-            scmb
+            torch.round(
+                scmb / run_data["options"].num_sims
+            ).long()
         )
     if (ct := run_data.get('controller_toggle')) is not None:
-        tr_fn = 'toggle_record.pkl'
+        tr_fn = 'toggle_record.csv'
         print(f"Writing toggle record to {tr_fn}...")
         max_len = max([len(a) for a in ct])
         for a in ct:
             while len(a) < max_len:
-                a.append(run_data['options'].server_epochs)
-        with open(tr_fn, 'wb') as f:
-            pickle.dump(torch.tensor(ct, dtype=float), f)
+                a.append(-1)
+        toggle_stats.write_results(
+            run_data["options"], torch.tensor(ct), tr_fn
+        )
     if run_data["options"].verbosity > 0:
         print("Done.")
     return run_data

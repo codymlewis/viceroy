@@ -71,21 +71,14 @@ def gen_conf_stats(confusion_matrix, options):
     return stats
 
 
-def gen_experiment_stats(sim_confusion_matrices, options):
+def gen_experiment_stats(confusion_matrices, options):
     """Find the statistics across multiple simulations"""
     stats = merge_dicts(
-        [gen_sim_stats(c, options) for c in sim_confusion_matrices]
+        [gen_conf_stats(c, options) for c in confusion_matrices]
     )
     for k, v in stats.items():
         stats[k] = torch.tensor(v)
     return stats
-
-
-def gen_sim_stats(confusion_matrices, options):
-    """Find the stastics of one simulation"""
-    return merge_dicts(
-        [gen_conf_stats(c, options) for c in confusion_matrices]
-    )
 
 
 def merge_dicts(dict_list):
