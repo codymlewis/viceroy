@@ -25,7 +25,7 @@
                 "to": 0,
                 "scale_up": false,
                 "toggle_times": null,
-                "delay": 1,
+                "delay": 1000,
                 "beta": 0.1,
                 "gamma": 0.7,
                 "optimized": true

@@ -7,11 +7,10 @@ Generate stats on the toggles of a simulation
 Author: Cody Lewis
 """
 
-import pickle
+import matplotlib.pyplot as plt
+import pandas
 
 from pathlib import Path
-
-import utils
 
 
 def avg(a):
@@ -66,14 +65,38 @@ def write_results(options, toggle_record, file_name):
     stats = get_stats(options, toggle_record)
     write_stats(options, stats, file_name)
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import pandas
-    df = pandas.read_csv('toggle_record.csv')
-    df.plot(kind='bar')
-    plt.xticks(range(len(df)), [x[:1] for x in df['ds']])
+def presentable(X):
+    return [x.replace('_', ' ').title() for x in X]
+
+def make_plot(df, indices, title, stacked, img_name):
+    df[indices].plot.bar(stacked=stacked, rot=0)
+    plt.xticks(range(len(df)), presentable(df['ds']))
     plt.xlabel("Dataset and Model")
     plt.ylabel("Number of Epochs")
-    plt.title("Comparison of Attack Timings")
-    plt.legend(loc=1, fontsize=5, framealpha=0.4)
-    plt.show()
+    plt.title(title)
+    plt.legend(
+        labels=presentable(indices[1:]),
+        loc=1,
+        fontsize=5,
+        framealpha=0.4
+    )
+    plt.savefig(img_name, dpi=320)
+    print(f"Done. Saved plot as {img_name}")
+
+
+if __name__ == '__main__':
+    df = pandas.read_csv('toggle_record.csv')
+    make_plot(
+        df,
+        ['ds', 'time_on', 'time_off'],
+        "Times Spent On and Off",
+        True,
+        "on_off_times.png"
+    )
+    make_plot(
+        df,
+        ['ds', 'off_to_on', 'on_to_off'],
+        "Times Taken for Toggles Between States",
+        False,
+        "on_off_toggles.png"
+    )
