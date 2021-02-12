@@ -32,17 +32,6 @@ class Controller:
         self.learning_rates = self.params['learning_rate'].copy()
         del self.learning_rates[0]
         self.lr_changes = self.params['lr_changes'].copy()
-        # Train adversarial model
-        data = load_data(self.options, train=True, shuffle=True)
-        data['dataloader'].dataset.targets[:] = self.options.adversaries['to']
-        model = load_model(self.options.model_params)
-        model.fit(
-            data['dataloader'],
-            epochs=5,
-            verbose=self.options.verbosity > 1
-        )
-        with torch.no_grad():
-            self.goal_model = utils.flatten_params(model.get_params(), self.params)
         self.attack = False
 
     def add_sybil(self, sybil):
