@@ -95,7 +95,7 @@ if __name__ == '__main__':
     )
     make_plot(
         df,
-        ['ds', 'off_to_on', 'on_to_off'],
+        ['ds', 'on_to_off',  'off_to_on'],
         "Times Taken for Toggles Between States",
         False,
         "on_off_toggles.png"
