@@ -1,0 +1,6 @@
+pandas
+tqdm
+matplotlib
+git+https://github.com/codymlewis/hkzoo.git
+git+https://github.com/codymlewis/tenjin.git
+git+https://github.com/codymlewis/ymir.git
