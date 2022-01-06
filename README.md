@@ -2,7 +2,7 @@
 
 A project evaluating some novel attacks against federated learning defenses.
 
-## Running
+## Executing
 
 First install the requirements:
 ```sh
