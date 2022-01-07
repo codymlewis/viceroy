@@ -18,3 +18,10 @@ And the grid search for the on-off attack parameters can be run with:
 ```sh
 python grid_search.py
 ```
+
+## Quick recreation
+
+The main experiment can be quickly recreated using docker with:
+```sh
+docker run ghcr.io/codymlewis/viceroy:latest
+```
