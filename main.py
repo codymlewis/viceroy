@@ -3,6 +3,7 @@ import os
 import argparse
 from functools import partial
 import pandas as pd
+import logging
 
 import numpy as np
 import jax
@@ -203,4 +204,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', type=str, default="mnist", help='Dataset to use')
     parser.add_argument('--aper', type=float, default=0.1, help='Percentage of adversaries in the network')
     args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+
     main(args)

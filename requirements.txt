@@ -3,4 +3,4 @@ tqdm
 matplotlib
 git+https://github.com/codymlewis/hkzoo.git@001bb2c
 git+https://github.com/codymlewis/tenjin.git@2d56328
-git+https://github.com/codymlewis/ymir.git@bde8859
+git+https://github.com/codymlewis/ymir.git@050ab63
