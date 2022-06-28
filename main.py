@@ -14,9 +14,9 @@ import haiku as hk
 
 from tqdm import trange
 
-import hkzoo
-import tenjin
-import ymir
+import models
+import dataloader
+import fl
 
 import metrics
 
@@ -34,7 +34,7 @@ def main(args):
     DATASET = args.dataset
     aper = args.aper
     print("Starting up...")
-    DS = ymir.mp.datasets.Dataset(*tenjin.load(DATASET))
+    DS = fl.utils.datasets.Dataset(*dataloader.load(DATASET))
     if DATASET == 'kddcup99':
         ATTACK_FROM, ATTACK_TO = 0, 11
     else:
@@ -43,26 +43,26 @@ def main(args):
     rng = np.random.default_rng(0)
     print(f"Running {ALG} on {DATASET} with {aper:.0%} {ADV} adversaries")
     if DATASET == 'cifar10':
-        net = hk.without_apply_rng(hk.transform(lambda x: hkzoo.ConvLeNet(DS.classes, x)))
+        net = hk.without_apply_rng(hk.transform(lambda x: models.ConvLeNet(DS.classes, x)))
     else:
-        net = hk.without_apply_rng(hk.transform(lambda x: hkzoo.LeNet_300_100(DS.classes, x)))
+        net = hk.without_apply_rng(hk.transform(lambda x: models.LeNet_300_100(DS.classes, x)))
 
     train_eval = DS.get_iter("train", 10_000, rng=rng)
     test_eval = DS.get_iter("test", rng=rng)
     opt = optax.sgd(0.01)
     params = net.init(jax.random.PRNGKey(42), next(test_eval)[0])
     opt_state = opt.init(params)
-    loss = ymir.mp.losses.cross_entropy_loss(net, DS.classes)
+    loss = fl.utils.losses.cross_entropy_loss(net, DS.classes)
 
     A = int(T * aper)
     N = T - A
     batch_sizes = [8 for _ in range(N + A)]
     if DATASET != 'kddcup99':
-        data = DS.fed_split(batch_sizes, partial(ymir.mp.distributions.lda, alpha=0.5 if ALG in ['contra', 'foolsgold', 'viceroy'] else 1000), rng)
+        data = DS.fed_split(batch_sizes, partial(fl.utils.distributions.lda, alpha=0.5 if ALG in ['contra', 'foolsgold', 'viceroy'] else 1000), rng)
     else:
         data = DS.fed_split(
             batch_sizes,
-            partial(ymir.mp.distributions.assign_classes, classes=[[(i + 1 if i >= 11 else i) % DS.classes, 11] for i in range(T)]),
+            partial(fl.utils.distributions.assign_classes, classes=[[(i + 1 if i >= 11 else i) % DS.classes, 11] for i in range(T)]),
             rng
         )
 
@@ -74,18 +74,18 @@ def main(args):
         test_eval = DS.get_iter(
             "test",
             map=partial({
-                "mnist": ymir.regiment.adversaries.backdoor.mnist_backdoor_map,
-                "cifar10": ymir.regiment.adversaries.backdoor.cifar10_backdoor_map,
-                "kddcup99": ymir.regiment.adversaries.backdoor.kddcup99_backdoor_map
+                "mnist": fl.client.adversaries.backdoor.mnist_backdoor_map,
+                "cifar10": fl.client.adversaries.backdoor.cifar10_backdoor_map,
+                "kddcup99": fl.client.adversaries.backdoor.kddcup99_backdoor_map
             }[DATASET], ATTACK_FROM, ATTACK_TO, no_label=True)
         )
 
     if ALG == "krum":
-        model = getattr(ymir.garrison, ALG).Captain(params, opt, opt_state, network, rng, clip=A)
+        model = getattr(fl.server, ALG).Captain(params, opt, opt_state, network, rng, clip=A)
     elif ALG == "contra":
-        model = getattr(ymir.garrison, ALG).Captain(params, opt, opt_state, network, rng, k=N)
+        model = getattr(fl.server, ALG).Captain(params, opt, opt_state, network, rng, k=N)
     else:
-        model = getattr(ymir.garrison, ALG).Captain(params, opt, opt_state, network, rng)
+        model = getattr(fl.server, ALG).Captain(params, opt, opt_state, network, rng)
 
     results = metrics.create_recorder(['accuracy', 'asr'], train=True, test=True, add_evals=['attacking'])
     results["asr"] = []
@@ -136,32 +136,32 @@ def create_network(num_honest, num_adv, attack, params, opt, opt_state, loss, da
         server_kwargs = {"k": num_honest}
     else:
         server_kwargs = {}
-    network = ymir.mp.network.Network()
+    network = fl.utils.network.Network()
     network.add_controller("main", server=True)
     for i in range(num_honest):
-        network.add_host("main", ymir.regiment.Scout(opt, opt_state, loss, data[i], 1))
+        network.add_host("main", fl.client.Scout(opt, opt_state, loss, data[i], 1))
     for i in range(num_adv):
-        c = ymir.regiment.Scout(opt, opt_state, loss, data[i + num_honest], batch_sizes[i + num_honest])
+        c = fl.client.Scout(opt, opt_state, loss, data[i + num_honest], batch_sizes[i + num_honest])
         if "labelflip" in attack:
-            ymir.regiment.adversaries.labelflipper.convert(c, ds, att_from, att_to)
+            fl.client.adversaries.labelflipper.convert(c, ds, att_from, att_to)
         elif "backdoor" in attack:
-            ymir.regiment.adversaries.backdoor.convert(c, ds, dataset, att_from, att_to)
+            fl.client.adversaries.backdoor.convert(c, ds, dataset, att_from, att_to)
         elif "freerider" in attack:
-            ymir.regiment.adversaries.freerider.convert(c, "delta", params)
+            fl.client.adversaries.freerider.convert(c, "delta", params)
         if "onoff" in attack:
-            ymir.regiment.adversaries.onoff.convert(c)
+            fl.client.adversaries.onoff.convert(c)
         network.add_host("main", c)
     controller = network.get_controller("main")
     if "scaling" in attack:
-        controller.add_update_transform(ymir.regiment.adversaries.scaler.GradientTransform(params, opt, opt_state, network, alg, num_adv, **server_kwargs))
+        controller.add_update_transform(fl.client.adversaries.scaler.GradientTransform(params, opt, opt_state, network, alg, num_adv, **server_kwargs))
     if "mouther" in attack:
-        controller.add_update_transform(ymir.regiment.adversaries.mouther.GradientTransform(num_adv, victim, attack))
+        controller.add_update_transform(fl.client.adversaries.mouther.GradientTransform(num_adv, victim, attack))
     if "onoff" not in attack:
         toggler = None
     else:
         if len(server_kwargs) > 0:
             server_kwargs["timer"] = True
-        toggler = ymir.regiment.adversaries.onoff.GradientTransform(
+        toggler = fl.client.adversaries.onoff.GradientTransform(
             params, opt, opt_state, network, alg, controller.clients[-num_adv:],
             max_alpha=1/num_honest if alg in ['fed_avg', 'std_dagmm'] else 1,
             sharp=alg in ['fed_avg', 'std_dagmm', 'krum'],
@@ -185,7 +185,7 @@ def record_metrics(results, evaluator, alpha, all_grads, params, train_eval, tes
         if (alpha[-num_adv:] < 0.0001).all():
             asr = -1 if alpha[victim] < 0.0001 else -2
         else:
-            theta = jax.flatten_util.ravel_pytree(ymir.garrison.sum_grads(all_grads))[0]
+            theta = jax.flatten_util.ravel_pytree(fl.server.sum_grads(all_grads))[0]
             vicdel = euclid_dist(jax.flatten_util.ravel_pytree(all_grads[victim])[0], theta)
             if "good" in attack:
                 numerator = min(euclid_dist(jnp.array([jax.flatten_util.ravel_pytree(g)[0] for g in all_grads]), theta))

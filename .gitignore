@@ -1,3 +1,5 @@
 __pycache__/
 results.*
 data/
+tags
+Session.vim

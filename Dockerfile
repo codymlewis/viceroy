@@ -5,12 +5,12 @@ COPY requirements.txt /requirements.txt
 RUN pip install jax && pip install -r requirements.txt
 
 RUN python -c "\
-import tenjin; \
+import dataloader; \
 import logging; \
 logging.basicConfig(level=logging.INFO); \
-tenjin.download('/app/data', 'mnist'); \
-tenjin.download('/app/data', 'cifar10'); \
-tenjin.download('/app/data', 'kddcup99'); \
+dataloader.download('/app/data', 'mnist'); \
+dataloader.download('/app/data', 'cifar10'); \
+dataloader.download('/app/data', 'kddcup99'); \
 "
 
 COPY . /app
