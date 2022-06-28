@@ -5,12 +5,12 @@ COPY requirements.txt /requirements.txt
 RUN pip install jax && pip install -r requirements.txt
 
 RUN python -c "\
-import dataloader; \
+import app.dataloader; \
 import logging; \
 logging.basicConfig(level=logging.INFO); \
-dataloader.download('/app/data', 'mnist'); \
-dataloader.download('/app/data', 'cifar10'); \
-dataloader.download('/app/data', 'kddcup99'); \
+app.dataloader.download('/app/data', 'mnist'); \
+app.dataloader.download('/app/data', 'cifar10'); \
+app.dataloader.download('/app/data', 'kddcup99'); \
 "
 
 COPY . /app
