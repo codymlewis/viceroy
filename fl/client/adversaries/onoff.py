@@ -6,8 +6,8 @@ from functools import partial
 
 import numpy as np
 
-from ymir import garrison
-from ymir.regiment import scout
+from fl import server
+from fl.client import scout
 
 
 class GradientTransform:
@@ -38,7 +38,7 @@ class GradientTransform:
         self.sharp = sharp
         self.beta = beta
         self.gamma = gamma
-        self.server = getattr(garrison, self.alg).Captain(params, opt, opt_state, network, rng, **kwargs)
+        self.server = getattr(server, self.alg).Captain(params, opt, opt_state, network, rng, **kwargs)
         self.adversaries = adversaries
         self.num_adv = len(adversaries)
         self.timer_mode = timer

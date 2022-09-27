@@ -34,7 +34,7 @@ def tree_mul(tree, scale):
 @jax.jit
 def tree_add(*trees):
     """Element-wise add any number of pytrees"""
-    return jax.tree_multimap(lambda *xs: sum(xs), *trees)
+    return jax.tree_map(lambda *xs: sum(xs), *trees)
 
 
 @jax.jit
