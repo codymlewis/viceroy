@@ -6,7 +6,6 @@ and are to be added to the network controller.
 """
 
 
-from . import alternating_minimization
 from . import backdoor
 from . import scaler
 from . import onoff

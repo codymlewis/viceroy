@@ -14,7 +14,7 @@ import jax.numpy as jnp
 from . import captain
 
 
-class Captain(captain.ScaleCaptain):
+class Captain(captain.Captain):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng(), tau_0=56, tau_1=5):
         r"""
         Construct the Viceroy captain.

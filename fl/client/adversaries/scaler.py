@@ -7,7 +7,7 @@ import numpy as np
 
 from fl import server
 
-import fl.lib
+import fl.utils.functions
 
 
 def convert(client, num_endpoints):
@@ -18,7 +18,7 @@ def convert(client, num_endpoints):
 
 def update(opt, scale, params, opt_state, grads):
     """Scale the gradient and resulting update."""
-    grads = fl.lib.tree_mul(grads, scale)
+    grads = fl.utils.functions.tree_mul(grads, scale)
     updates, opt_state = opt.update(grads, opt_state, params)
     return grads, opt_state, updates
 
@@ -51,5 +51,5 @@ class GradientTransform:
         idx = np.arange(len(alpha) - self.num_adv, len(alpha))[alpha[-self.num_adv:] > 0.0001]
         alpha[idx] = 1 / alpha[idx]
         for i in idx:
-            all_grads[i] = fl.lib.tree_mul(all_grads[i], alpha[i])
+            all_grads[i] = fl.utils.functions.tree_mul(all_grads[i], alpha[i])
         return all_grads

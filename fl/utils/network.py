@@ -6,7 +6,7 @@ Defines the network architecture for the FL system.
 import numpy as  np
 import optax
 
-import fl.lib
+import fl.utils.functions
 
 
 class Controller:
@@ -63,9 +63,9 @@ class Controller:
             for _ in range(self.clients[i].epochs):
                 grads, self.clients[i].opt_state, updates = self.clients[i].update(p, self.clients[i].opt_state, *next(self.clients[i].data))
                 p = optax.apply_updates(p, updates)
-                sum_grads = grads if sum_grads is None else fl.lib.tree_add(sum_grads, grads)
+                sum_grads = grads if sum_grads is None else fl.utils.functions.tree_add(sum_grads, grads)
             all_updates.append(p if return_weights else sum_grads)
-        return fl.lib.chain(self.update_transform_chain, all_updates)
+        return fl.utils.functions.chain(self.update_transform_chain, all_updates)
 
 
 class Network:

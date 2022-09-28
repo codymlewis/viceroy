@@ -11,7 +11,7 @@ import numpy as np
 from . import captain
 
 
-class Captain(captain.ScaleCaptain):
+class Captain(captain.Captain):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng()):
         super().__init__(params, opt, opt_state, network, rng)
         self.batch_sizes = jnp.array([c.batch_size * c.epochs for c in network.clients])

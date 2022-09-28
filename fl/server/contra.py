@@ -11,7 +11,7 @@ import jax.numpy as jnp
 from . import captain
 
 
-class Captain(captain.ScaleCaptain):
+class Captain(captain.Captain):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng(), C=0.1, k=10, delta=0.1, t=0.5):
         """
         Construct the CONTRA captain.
@@ -34,7 +34,7 @@ class Captain(captain.ScaleCaptain):
         self.J = round(self.C * len(network))
 
     def update(self, all_grads):
-        """Update the stored collaborator histories, that is, perform $H_{i, t + 1} \gets H_{i, t} + \Delta_{i, t + 1} : \\forall i \in \mathcal{U}$"""
+        r"""Update the stored collaborator histories, that is, perform $H_{i, t + 1} \gets H_{i, t} + \Delta_{i, t + 1} : \forall i \in \mathcal{U}$"""
         self.histories = update(self.histories, all_grads)
 
     def scale(self, all_grads):
@@ -48,6 +48,7 @@ class Captain(captain.ScaleCaptain):
         cs[cs < 0] = 0
         taus = (-np.partition(-cs, self.k - 1, axis=1)[:, :self.k]).mean(axis=1)
         self.reps[idx] = np.where(taus > self.t, self.reps[idx] + self.delta, self.reps[idx] - self.delta)
+        self.reps[idx] = np.maximum(self.reps[idx], 0)  # Ensure reputations stay above 0
         cs = cs * np.minimum(1, taus[:, None] / taus)
         taus = (-np.partition(-cs, self.k - 1, axis=1)[:, :self.k]).mean(axis=1)
         lr = np.zeros(n_clients)

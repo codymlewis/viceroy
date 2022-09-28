@@ -28,7 +28,7 @@ def main(args):
     else:
         final_results = pd.DataFrame(columns=["algorithm", "attack", "dataset"] + [f"{p} mean asr" for p in adv_percent] + [f"{p} std asr" for p in adv_percent])
     VICTIM = 0
-    T = 100
+    T = args.clients
     ALG = args.alg
     ADV = args.attack
     DATASET = args.dataset
@@ -66,7 +66,10 @@ def main(args):
             rng
         )
 
-    network, toggler = create_network(N, A, ADV, params, opt, opt_state, loss, data, batch_sizes, DS, DATASET, ALG, ATTACK_FROM, ATTACK_TO, VICTIM)
+    network, toggler = create_network(
+        N, A, ADV, params, opt, opt_state, loss, data, batch_sizes,
+        DS, DATASET, ALG, ATTACK_FROM, ATTACK_TO, VICTIM
+    )
 
     evaluator = metrics.measurer(net)
 
@@ -92,12 +95,14 @@ def main(args):
 
     # Train/eval loop.
     TOTAL_ROUNDS = 5000
-    for round in (pbar := trange(TOTAL_ROUNDS)):
+    for r in (pbar := trange(TOTAL_ROUNDS)):
         alpha, all_grads = model.step()
-        if round % 1 == 0:
-            attacking = toggler.attacking if toggler else True
-            record_metrics(results, evaluator, alpha, all_grads, model.params, train_eval, test_eval, ADV, ALG, A, attacking, ATTACK_FROM, ATTACK_TO, VICTIM)
-            pbar.set_postfix({'ACC': f"{results['test accuracy'][-1]:.3f}", 'ASR': f"{results['asr'][-1]:.3f}", 'ATT': attacking})
+        attacking = toggler.attacking if toggler else True
+        record_metrics(
+            results, evaluator, alpha, all_grads, model.params, train_eval, test_eval,
+            ADV, ALG, A, attacking, ATTACK_FROM, ATTACK_TO, VICTIM
+        )
+        pbar.set_postfix({'ACC': f"{results['test accuracy'][-1]:.3f}", 'ASR': f"{results['asr'][-1]:.3f}", 'ATT': attacking})
     results = metrics.finalize(results)
     cur[f"{aper} mean asr"] = results['asr'].mean()
     cur[f"{aper} std asr"] = results['asr'].std()
@@ -199,6 +204,7 @@ def record_metrics(results, evaluator, alpha, all_grads, params, train_eval, tes
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the viceroy main experiment.')
+    parser.add_argument('--clients', type=int, default=100, help='Number of clients')
     parser.add_argument('--alg', type=str, default="fedavg", help='Algorithm to use')
     parser.add_argument('--attack', type=str, default="onoff labelflip", help='Attack to use')
     parser.add_argument('--dataset', type=str, default="mnist", help='Dataset to use')

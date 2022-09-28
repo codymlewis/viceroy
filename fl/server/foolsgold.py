@@ -11,7 +11,7 @@ import jax.numpy as jnp
 from . import captain
 
 
-class Captain(captain.ScaleCaptain):
+class Captain(captain.Captain):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng(), kappa=1.0):
         """
         Construct the FoolsGold captain.

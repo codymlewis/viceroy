@@ -1,10 +1,3 @@
-"""
-There are two generic forms of servers defined here:
-- ScaleCaptain: a server that takes in a collection of gradients and algorithmically scales them
-- AggregateCaptain: a server that takes in a collection of weights and aggregates them into a single weight
-"""
-
-
 from abc import ABC, abstractmethod
 from typing import Iterable
 import numpy as np
@@ -13,12 +6,12 @@ import optax
 import jax
 import jaxlib
 
-import fl.lib
+import fl.utils.functions
 
 from fl.utils.network import Network
 
 
-class ScaleCaptain(ABC):
+class Captain(ABC):
     """A captain that algorithmically scales gradients by some factor, $p_i$"""
     params: optax.Params
     network: Network
@@ -60,31 +53,6 @@ class ScaleCaptain(ABC):
         return alpha, all_grads
 
 
-class AggregateCaptain(ABC):
-    """A captian that aggregates weights into a single global weight, $w_t$"""
-    params: optax.Params
-    network: Network
-    opt_state: optax.OptState
-    rng: np.random.Generator
-
-    def __init__(self, params, opt, opt_state, network, rng):
-        self.params = params
-        self.opt_state = opt_state
-        self.network = network
-        self.rng = rng
-        self.update_params = update(opt)
-
-    @abstractmethod
-    def update(self, all_weights: Iterable):
-        """Update the global weight according to the specified algorithm."""
-        pass
-
-    @abstractmethod
-    def step(self):
-        """Perform a step involving getting weights from the network and aggregating them into the global weight."""
-        pass
-
-
 def update(opt):
     """
     Update the global model using endpoint gradients.
@@ -101,8 +69,8 @@ def update(opt):
 
 def apply_scale(alpha, all_grads):
     """Scale a collection of gradients by the value of alpha"""
-    return [fl.lib.tree_mul(g, a) for g, a in zip(all_grads, alpha)]
+    return [fl.utils.functions.tree_mul(g, a) for g, a in zip(all_grads, alpha)]
 
 def sum_grads(all_grads):
     """Element-wise sum together a collection of gradients, simplifies boilerplate"""
-    return fl.lib.tree_add(*all_grads)
+    return fl.utils.functions.tree_add(*all_grads)
