@@ -77,18 +77,18 @@ def main(args):
         test_eval = DS.get_iter(
             "test",
             map=partial({
-                "mnist": fl.client.adversaries.backdoor.mnist_backdoor_map,
-                "cifar10": fl.client.adversaries.backdoor.cifar10_backdoor_map,
-                "kddcup99": fl.client.adversaries.backdoor.kddcup99_backdoor_map
+                "mnist": fl.adversaries.backdoor.mnist_backdoor_map,
+                "cifar10": fl.adversaries.backdoor.cifar10_backdoor_map,
+                "kddcup99": fl.adversaries.backdoor.kddcup99_backdoor_map
             }[DATASET], ATTACK_FROM, ATTACK_TO, no_label=True)
         )
 
     if ALG == "krum":
-        model = getattr(fl.server, ALG).Captain(params, opt, opt_state, network, rng, clip=A)
+        model = getattr(fl.server, ALG).Server(params, opt, opt_state, network, rng, clip=A)
     elif ALG == "contra":
-        model = getattr(fl.server, ALG).Captain(params, opt, opt_state, network, rng, k=N)
+        model = getattr(fl.server, ALG).Server(params, opt, opt_state, network, rng, k=N)
     else:
-        model = getattr(fl.server, ALG).Captain(params, opt, opt_state, network, rng)
+        model = getattr(fl.server, ALG).Server(params, opt, opt_state, network, rng)
 
     results = metrics.create_recorder(['accuracy', 'asr'], train=True, test=True, add_evals=['attacking'])
     results["asr"] = []
@@ -144,29 +144,31 @@ def create_network(num_honest, num_adv, attack, params, opt, opt_state, loss, da
     network = fl.utils.network.Network()
     network.add_controller("main", server=True)
     for i in range(num_honest):
-        network.add_host("main", fl.client.Scout(opt, opt_state, loss, data[i], 1))
+        network.add_host("main", fl.client.Client(opt, opt_state, loss, data[i], 1))
     for i in range(num_adv):
-        c = fl.client.Scout(opt, opt_state, loss, data[i + num_honest], batch_sizes[i + num_honest])
+        c = fl.client.Client(opt, opt_state, loss, data[i + num_honest], batch_sizes[i + num_honest])
         if "labelflip" in attack:
-            fl.client.adversaries.labelflipper.convert(c, ds, att_from, att_to)
+            fl.adversaries.labelflipper.convert(c, ds, att_from, att_to)
         elif "backdoor" in attack:
-            fl.client.adversaries.backdoor.convert(c, ds, dataset, att_from, att_to)
+            fl.adversaries.backdoor.convert(c, ds, dataset, att_from, att_to)
         elif "freerider" in attack:
-            fl.client.adversaries.freerider.convert(c, "delta", params)
+            fl.adversaries.freerider.convert(c, "delta", params)
         if "onoff" in attack:
-            fl.client.adversaries.onoff.convert(c)
+            fl.adversaries.onoff.convert(c)
         network.add_host("main", c)
     controller = network.get_controller("main")
     if "scaling" in attack:
-        controller.add_update_transform(fl.client.adversaries.scaler.GradientTransform(params, opt, opt_state, network, alg, num_adv, **server_kwargs))
+        controller.add_update_transform(
+            fl.adversaries.scaler.GradientTransform(params, opt, opt_state, network, alg, num_adv, **server_kwargs)
+        )
     if "mouther" in attack:
-        controller.add_update_transform(fl.client.adversaries.mouther.GradientTransform(num_adv, victim, attack))
+        controller.add_update_transform(fl.adversaries.mouther.GradientTransform(num_adv, victim, attack))
     if "onoff" not in attack:
         toggler = None
     else:
         if len(server_kwargs) > 0:
             server_kwargs["timer"] = True
-        toggler = fl.client.adversaries.onoff.GradientTransform(
+        toggler = fl.adversaries.onoff.GradientTransform(
             params, opt, opt_state, network, alg, controller.clients[-num_adv:],
             max_alpha=1/num_honest if alg in ['fed_avg', 'std_dagmm'] else 1,
             sharp=alg in ['fed_avg', 'std_dagmm', 'krum'],

@@ -6,13 +6,13 @@ it is designed to be robust to Byzantine faults with i.i.d. environments.
 import numpy as np
 import jax
 
-from . import captain
+from . import server
 
 
-class Captain(captain.Captain):
+class Server(server.Server):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng(), clip=3):
         """
-        Construct the Krum captain.
+        Construct the Krum server.
 
         Optional arguments:
         - clip: the number of expected faults in each round.

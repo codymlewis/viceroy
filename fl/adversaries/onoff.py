@@ -7,7 +7,7 @@ from functools import partial
 import numpy as np
 
 from fl import server
-from fl.client import scout
+from fl import client as client_lib
 
 
 class GradientTransform:
@@ -38,7 +38,7 @@ class GradientTransform:
         self.sharp = sharp
         self.beta = beta
         self.gamma = gamma
-        self.server = getattr(server, self.alg).Captain(params, opt, opt_state, network, rng, **kwargs)
+        self.server = getattr(server, self.alg).Server(params, opt, opt_state, network, rng, **kwargs)
         self.adversaries = adversaries
         self.num_adv = len(adversaries)
         self.timer_mode = timer
@@ -74,10 +74,10 @@ class GradientTransform:
 def convert(client):
     """Convert an endpoint into an on-off toggle adversary."""
     client.shadow_update = client.update
-    client.update = partial(scout.update, client.opt, client.loss)
+    client.update = partial(client_lib.update, client.opt, client.loss)
     client.toggle = toggle.__get__(client)
 
 
 def toggle(self):
     """Toggle the attack."""
-    self.update, shadow_update = self.shadow_update, self.update
+    self.update, self.shadow_update = self.shadow_update, self.update

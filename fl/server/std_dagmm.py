@@ -11,7 +11,7 @@ import optax
 import numpy as np
 from sklearn import mixture
 
-from . import captain
+from . import server
 
 
 # Utility functions/classes
@@ -79,7 +79,7 @@ def _predict(params, net, gmm, X):
 # Algorithm functions/classes
 
 
-class Captain(captain.Captain):
+class Server(server.Server):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng()):
         super().__init__(params, opt, opt_state, network, rng)
         self.batch_sizes = jnp.array([c.batch_size * c.epochs for c in network.clients])

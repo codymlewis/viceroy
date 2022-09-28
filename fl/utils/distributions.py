@@ -11,15 +11,8 @@ All functions take the following arguments:
 And they all return a list of lists of indices, where the outer list is indexed by endpoint.
 """
 
-import itertools
-
 import numpy as np
 import logging
-
-
-def homogeneous(X, y, nendpoints, nclasses, rng):
-    """Assign all data to all endpoints"""
-    return [np.arange(len(y)) for _ in range(nendpoints)]
 
 
 def extreme_heterogeneous(X, y, nendpoints, nclasses, rng):
@@ -45,27 +38,6 @@ def lda(X, y, nendpoints, nclasses, rng, alpha=0.5):
         distribution = [distribution[i] + d.tolist() for i, d in enumerate(dists_c)]
     logging.debug(f"distribution: {proportions}")
     return distribution
-
-
-def iid_partition(X, y, nendpoints, nclasses, rng):
-    """Assign each endpoint iid the data from each class as defined in `https://arxiv.org/abs/1602.05629 <https://arxiv.org/abs/1602.05629>`_"""
-    idx = np.arange(len(y))
-    rng.shuffle(idx)
-    return np.split(idx, [round(i * (len(y) // nendpoints)) for i in range(1, nendpoints)])
-
-
-def shard(X, y, nendpoints, nclasses, rng, shards_per_endpoint=2):
-    """
-    The shard data distribution scheme as defined in `https://arxiv.org/abs/1602.05629 <https://arxiv.org/abs/1602.05629>`_
-    shards are even partitions of the data after sorting by class.
-
-    Optional arguments:
-    - shards_per_endpoint: the number of shards to assign to each endpoint.
-    """
-    idx = np.argsort(y)  # sort by label
-    shards = np.split(idx, [round(i * (len(y) // (nendpoints * shards_per_endpoint))) for i in range(1, nendpoints * shards_per_endpoint)])
-    assignment = rng.choice(np.arange(len(shards)), (nendpoints, shards_per_endpoint), replace=False)
-    return [list(itertools.chain(*[shards[assignment[i][j]] for j in range(shards_per_endpoint)])) for i in range(nendpoints)]
 
 
 def assign_classes(X, y, nendpoints, nclasses, rng, classes=None):

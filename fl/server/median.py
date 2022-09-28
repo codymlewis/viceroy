@@ -6,10 +6,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from . import captain
+from . import server
 
 
-class Captain(captain.Captain):
+class Server(server.Server):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng()):
         super().__init__(params, opt, opt_state, network, rng)
         self.G_unraveller = jax.jit(jax.flatten_util.ravel_pytree(params)[1])

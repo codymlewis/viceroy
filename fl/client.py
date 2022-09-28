@@ -5,7 +5,7 @@ Standard endpoint collaborators for federated learning.
 from functools import partial
 import jax
 
-class Scout:
+class Client:
     """An endpoint for federated learning, holds its own data and personal learning variables."""
     def __init__(self, opt, opt_state, loss, data, epochs):
         """

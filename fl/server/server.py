@@ -4,15 +4,14 @@ import numpy as np
 
 import optax
 import jax
-import jaxlib
 
 import fl.utils.functions
 
 from fl.utils.network import Network
 
 
-class Captain(ABC):
-    """A captain that algorithmically scales gradients by some factor, $p_i$"""
+class Server(ABC):
+    """A FL server, holds the global model and aggregates client updates"""
     params: optax.Params
     network: Network
     opt_state: optax.OptState
@@ -31,7 +30,7 @@ class Captain(ABC):
         pass
 
     @abstractmethod
-    def scale(self, all_grads: Iterable) -> jaxlib.xla_extension.DeviceArray:
+    def scale(self, all_grads: Iterable) -> jax.Array:
         """Calculate the amount by which to scale the gradients by ($p_i$), according the specified algorithm."""
         pass
 

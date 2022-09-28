@@ -6,4 +6,5 @@ from fl import (
     server,
     utils,
     client,
+    adversaries,
 )

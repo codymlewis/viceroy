@@ -54,14 +54,14 @@ def main(_):
             network = fl.utils.network.Network()
             network.add_controller("main", server=True)
             for i in range(N):
-                network.add_host("main", fl.client.Scout(opt, opt_state, loss, data[i], 1))
+                network.add_host("main", fl.client.Client(opt, opt_state, loss, data[i], 1))
             for i in range(A):
-                c = fl.client.Scout(opt, opt_state, loss, data[i + N], 1)
-                fl.client.adversaries.labelflipper.convert(c, DS, ATTACK_FROM, ATTACK_TO)
-                fl.client.adversaries.onoff.convert(c)
+                c = fl.client.Client(opt, opt_state, loss, data[i + N], 1)
+                fl.adversaries.labelflipper.convert(c, DS, ATTACK_FROM, ATTACK_TO)
+                fl.adversaries.onoff.convert(c)
                 network.add_host("main", c)
             controller = network.get_controller("main")
-            toggler = fl.client.adversaries.onoff.GradientTransform(
+            toggler = fl.adversaries.onoff.GradientTransform(
                 params, opt, opt_state, network, ALG, controller.clients[-A:],
                 max_alpha=1/N if ALG in ['fed_avg', 'std_dagmm'] else 1,
                 sharp=ALG in ['fed_avg', 'std_dagmm', 'krum']
@@ -69,7 +69,7 @@ def main(_):
             controller.add_update_transform(toggler)
 
             evaluator = metrics.measurer(net)
-            model = getattr(fl.client, ALG).Captain(params, opt, opt_state, network)
+            model = getattr(fl.client, ALG).Server(params, opt, opt_state, network)
             results = metrics.create_recorder(['accuracy', 'asr'], train=True, test=True, add_evals=['attacking'])
 
             # Train/eval loop.

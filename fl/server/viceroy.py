@@ -11,13 +11,13 @@ import sklearn.metrics.pairwise as smp
 import jax
 import jax.numpy as jnp
 
-from . import captain
+from . import server
 
 
-class Captain(captain.Captain):
+class Server(server.Server):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng(), tau_0=56, tau_1=5):
         r"""
-        Construct the Viceroy captain.
+        Construct the Viceroy server.
 
         Optional arguments:
         - tau_0: amount of rounds for the reputation to decay to 0 ($\tau_0$).

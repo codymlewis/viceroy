@@ -8,13 +8,13 @@ import sklearn.metrics.pairwise as smp
 import jax
 import jax.numpy as jnp
 
-from . import captain
+from . import server
 
 
-class Captain(captain.Captain):
+class Server(server.Server):
     def __init__(self, params, opt, opt_state, network, rng=np.random.default_rng(), kappa=1.0):
         """
-        Construct the FoolsGold captain.
+        Construct the FoolsGold server.
 
         Optional arguments:
         - kappa: value stating the distribution of classes across endpoints.

@@ -42,7 +42,7 @@ class GradientTransform:
         """
         self.num_adv = num_adversaries
         self.alg = alg
-        self.server = getattr(server, self.alg).Captain(params, opt, opt_state, network, rng, **kwargs)
+        self.server = getattr(server, self.alg).Server(params, opt, opt_state, network, rng, **kwargs)
 
     def __call__(self, all_grads):
         """Get the scale value and scale the gradients."""
