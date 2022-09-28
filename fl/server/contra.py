@@ -48,7 +48,7 @@ class Server(server.Server):
         cs[cs < 0] = 0
         taus = (-np.partition(-cs, self.k - 1, axis=1)[:, :self.k]).mean(axis=1)
         self.reps[idx] = np.where(taus > self.t, self.reps[idx] + self.delta, self.reps[idx] - self.delta)
-        self.reps[idx] = np.maximum(self.reps[idx], 0)  # Ensure reputations stay above 0
+        self.reps[idx] = np.maximum(self.reps[idx], 1e-8)  # Ensure reputations stay above 0
         cs = cs * np.minimum(1, taus[:, None] / taus)
         taus = (-np.partition(-cs, self.k - 1, axis=1)[:, :self.k]).mean(axis=1)
         lr = np.zeros(n_clients)
