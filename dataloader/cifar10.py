@@ -1,5 +1,5 @@
 """
-The CIFAR-10 object recognition dataset https://www.cs.toronto.edu/~kriz/cifar.html.
+The CIFAR-10 object recognition dataset from https://www.cs.toronto.edu/~kriz/cifar.html.
 Contains small 32x32 RGB images of 10 classes.
 """
 

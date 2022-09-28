@@ -1,5 +1,5 @@
-r"""
-.. include:: README.md
+"""
+Server-side algorithms for federated learning. Each module includes a different aggregation algorithm.
 """
 
 

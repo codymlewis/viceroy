@@ -1,5 +1,5 @@
 """
-Median aggregation method proposed in `https://arxiv.org/abs/1803.01498 <https://arxiv.org/abs/1803.01498>`_
+Median aggregation method proposed in https://arxiv.org/abs/1803.01498
 """
 
 import jax
@@ -14,7 +14,7 @@ class Server(server.Server):
         super().__init__(params, opt, opt_state, network, rng)
         self.G_unraveller = jax.jit(jax.flatten_util.ravel_pytree(params)[1])
 
-    def step(self):
+    def step(self):  # Due to being a bit different to the others we redefine the step method
         # Client side updates
         all_grads = self.network(self.params, self.rng, return_weights=False)
 

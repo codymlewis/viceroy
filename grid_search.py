@@ -1,3 +1,7 @@
+"""
+Grid search code used to find the best parameters for the on-off attack.
+"""
+
 from functools import partial
 import itertools
 import pandas as pd

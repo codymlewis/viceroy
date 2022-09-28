@@ -1,3 +1,7 @@
+"""
+A generic server definition used to make the other definitions more uniform.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Iterable
 import numpy as np

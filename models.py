@@ -1,9 +1,14 @@
+"""
+Module for the neural network models
+"""
+
+
 import jax
 import haiku as hk
 
 
 def LeNet_300_100(classes, x):
-    """LeNet 300-100 network from `https://doi.org/10.1109/5.726791 <https://doi.org/10.1109/5.726791>`_"""
+    """LeNet 300-100 network from https://doi.org/10.1109/5.726791"""
     x = hk.Sequential([
         hk.Flatten(),
         hk.Linear(300), jax.nn.relu,

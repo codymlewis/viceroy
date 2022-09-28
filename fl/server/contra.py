@@ -1,5 +1,5 @@
 """
-The CONTRA algorithm proposed in `https://www.ittc.ku.edu/~bluo/pubs/Awan2021ESORICS.pdf <https://www.ittc.ku.edu/~bluo/pubs/Awan2021ESORICS.pdf>`_
+The CONTRA algorithm proposed in https://www.ittc.ku.edu/~bluo/pubs/Awan2021ESORICS.pdf
 it is designed to provide robustness to poisoning adversaries within many statistically heterogenous environments.
 """
 

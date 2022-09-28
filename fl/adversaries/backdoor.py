@@ -1,5 +1,5 @@
 """
-Federated learning backdoor attack proposed in `https://arxiv.org/abs/1807.00459 <https://arxiv.org/abs/1807.00459>`_
+Federated learning backdoor attack proposed in https://arxiv.org/abs/1807.00459
 """
 
 from functools import partial
@@ -28,6 +28,16 @@ def convert(client, dataset, dataset_name, attack_from, attack_to):
     client.update = partial(update, client.opt, client.loss, data)
 
 
+@partial(jax.jit, static_argnums=(0, 1, 2))
+def update(opt, loss, data, params, opt_state, X, y):
+    """Backdoor update function for endpoints."""
+    grads = jax.grad(loss)(params, *next(data))
+    updates, opt_state = opt.update(grads, opt_state, params)
+    return grads, opt_state, updates
+
+
+# Backdoor triggers for the three datasets
+
 def mnist_backdoor_map(attack_from, attack_to, X, y, no_label=False):
     idx = y == attack_from
     X[idx, 0:5, 0:5] = 1
@@ -49,11 +59,3 @@ def kddcup99_backdoor_map(attack_from, attack_to, X, y, no_label=False):
     if not no_label:
         y[idx] = attack_to
     return (X, y)
-
-
-@partial(jax.jit, static_argnums=(0, 1, 2))
-def update(opt, loss, data, params, opt_state, X, y):
-    """Backdoor update function for endpoints."""
-    grads = jax.grad(loss)(params, *next(data))
-    updates, opt_state = opt.update(grads, opt_state, params)
-    return grads, opt_state, updates

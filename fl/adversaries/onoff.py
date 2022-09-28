@@ -1,5 +1,5 @@
 """
-Federate learning on-off toggle attack, this is not an attack by itself but it toggles an already existing attack.
+Federated learning on-off toggle attack, this is not an attack by itself but it toggles an already existing attack.
 """
 
 from functools import partial

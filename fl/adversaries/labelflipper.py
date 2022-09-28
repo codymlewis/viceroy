@@ -1,5 +1,5 @@
 """
-Targeted model poisoning (label flipping) attack, proposed in `https://arxiv.org/abs/1811.12470 <https://arxiv.org/abs/1811.12470>`_
+Targeted model poisoning (label flipping) attack, proposed in https://arxiv.org/abs/1811.12470
 """
 
 from functools import partial

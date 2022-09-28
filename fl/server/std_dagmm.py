@@ -1,5 +1,5 @@
 """
-STD-DAGMM algorithm proposed in `https://arxiv.org/abs/1911.12560 <https://arxiv.org/abs/1911.12560>`_ designed to mitigate free-rider attacks
+STD-DAGMM algorithm proposed in https://arxiv.org/abs/1911.12560 designed to mitigate free-rider attacks
 """
 
 import jax

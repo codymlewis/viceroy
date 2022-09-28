@@ -1,9 +1,14 @@
+"""
+Code to create a plot showing the effects of an attack over the course of rounds
+"""
+
 import pickle
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 
 def make_plot(filename, results, attacking=None):
+    """Create and save the plot"""
     rounds = range(0, 5_001, 10)
     fig, ax = plt.subplots()
     ax.set_ylim(0, 1)
@@ -30,6 +35,7 @@ def make_plot(filename, results, attacking=None):
 
 
 def attack_points(attacking):
+    """Get a list of tuples saying the numerical start and end points of attack toggles"""
     state = False
     points = []
     for i, a in enumerate(attacking):

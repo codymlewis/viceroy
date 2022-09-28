@@ -1,5 +1,5 @@
 """
-The FoolsGold algorithm proposed in `https://arxiv.org/abs/1808.04866 <https://arxiv.org/abs/1808.04866>`_
+The FoolsGold algorithm proposed in https://arxiv.org/abs/1808.04866
 it is designed to provide robustness to (Sybil) adversarial attacks within non-i.i.d. environments.
 """
 
@@ -30,7 +30,7 @@ class Server(server.Server):
         """
         Scale the gradients according to the FoolsGold algorithm.
 
-        Code adapted from `https://github.com/DistributedML/FoolsGold <https://github.com/DistributedML/FoolsGold>`_.
+        Code adapted from https://github.com/DistributedML/FoolsGold
         """
         n_clients = self.histories.shape[0]
         cs = smp.cosine_similarity(self.histories) - np.eye(n_clients)

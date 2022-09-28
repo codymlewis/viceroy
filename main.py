@@ -1,3 +1,7 @@
+"""
+Main experiment code that illustrates the effects of various attacks against various aggregators.
+"""
+
 import sys
 import os
 import argparse

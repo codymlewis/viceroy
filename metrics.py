@@ -1,8 +1,14 @@
+"""
+A collection of functions for recording the data from experiments.
+"""
+
+
 import jax
 import jax.numpy as jnp
 
 
 def measurer(net):
+    """Get a dictionary containing the metric functions to record data with"""
     @jax.jit
     def accuracy(params, X, y):
         predictions = net.apply(params, X)
@@ -17,6 +23,7 @@ def measurer(net):
 
 
 def create_recorder(evals, train=False, test=False, add_evals=None):
+    """Create a structured dictionary to record data into"""
     results = dict()
     if train:
         results.update({f"train {e}": [] for e in evals})
@@ -28,6 +35,7 @@ def create_recorder(evals, train=False, test=False, add_evals=None):
 
 
 def record(results, evaluator, params, train_ds=None, test_ds=None, add_recs=None, **kwargs):
+    """Record a line of data"""
     for k, v in results.items():
         ds = train_ds if "train" in k else test_ds
         if "acc" in k:
@@ -40,12 +48,14 @@ def record(results, evaluator, params, train_ds=None, test_ds=None, add_recs=Non
 
 
 def finalize(results):
+    """Format the recorded metrics into a useful data type"""
     for k, v in results.items():
         results[k] = jnp.array(v)
     return results
 
 
 def tabulate(results, total_rounds, ri=10):
+    """Create string showing a table of results from the recorded metrics"""
     halftime = int((total_rounds / 2) / ri)
     table = ""
     for k, v in results.items():
@@ -54,6 +64,7 @@ def tabulate(results, total_rounds, ri=10):
 
 
 def csvline(ds_name, alg, adv, results, total_rounds, ri=10):
+    """Summarize the recorded results into a single csv formatted line"""
     halftime = int((total_rounds / 2) / ri)
     asr = results['test asr']
     return f"{ds_name},{alg},{adv:.2%},{results['test accuracy'][-1]},{asr.mean()},{asr.std()},{asr[halftime:].mean()},{asr[halftime:].std()}\n"

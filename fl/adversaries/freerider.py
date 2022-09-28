@@ -1,5 +1,5 @@
 """
-Federated learning free rider attack proposed in `https://arxiv.org/abs/1911.12560 <https://arxiv.org/abs/1911.12560>`_
+Federated learning free rider attack proposed in https://arxiv.org/abs/1911.12560
 """
 
 

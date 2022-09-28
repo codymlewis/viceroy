@@ -1,5 +1,5 @@
 """
-MNIST digit recognition dataset http://yann.lecun.com/exdb/mnist/.
+MNIST digit recognition dataset from http://yann.lecun.com/exdb/mnist/.
 """
 
 import os

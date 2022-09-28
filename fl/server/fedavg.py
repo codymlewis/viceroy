@@ -1,7 +1,7 @@
-"""
-Basic federated averaging proposed in `https://arxiv.org/abs/1602.05629 <https://arxiv.org/abs/1602.05629>`_
+r"""
+Basic federated averaging proposed in https://arxiv.org/abs/1602.05629
 this simply scales received gradients by the number of data they trained on divided by the total number of data,
-$\\frac{n_i}{\sum_{i \in \mathcal{U}} n_i}$.
+$\frac{n_i}{\sum_{i \in \mathcal{U}} n_i}$.
 """
 
 import jax

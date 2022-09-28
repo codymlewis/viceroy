@@ -1,5 +1,5 @@
 """
-KDD Cup '99 intrusion detection dataset http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html.
+KDD Cup '99 intrusion detection dataset from http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html.
 """
 
 
