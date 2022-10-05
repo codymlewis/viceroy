@@ -196,7 +196,7 @@ def record_metrics(results, evaluator, alpha, all_grads, params, train_eval, tes
         if (alpha[-num_adv:] < 0.0001).all():
             asr = -1 if alpha[victim] < 0.0001 else -2
         else:
-            theta = jax.flatten_util.ravel_pytree(fl.server.sum_grads(all_grads))[0]
+            theta = jax.flatten_util.ravel_pytree(fl.server.server.sum_grads(all_grads))[0]
             vicdel = euclid_dist(jax.flatten_util.ravel_pytree(all_grads[victim])[0], theta)
             if "good" in attack:
                 numerator = min(euclid_dist(jnp.array([jax.flatten_util.ravel_pytree(g)[0] for g in all_grads]), theta))
