@@ -1,6 +1,7 @@
 # Viceroy
 
-A project evaluating some novel attacks against federated learning defenses.
+Source code corresponding to ["Attacks against Federated Learning Defense Systems and their Mitigation"](https://jmlr.org/papers/v23/22-0014.html) by
+Cody Lewis, Vijay Varadharajan, and Nasimul Noman.
 
 ## Executing
 
@@ -8,6 +9,8 @@ First install the requirements:
 ```sh
 pip install -r requirements.txt
 ```
+
+You will also need to install jax as described at https://github.com/google/jax#installation
 
 Then the main experiments can be run with:
 ```sh
